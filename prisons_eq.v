@@ -299,7 +299,7 @@ Proof.
   - apply (idxcontt_app _ _ _ _ xcont eq_refl).
 Qed.
 
-Goal forall n, prison n = prisoo n.
+Lemma prisons_eq : forall n, prison n = prisoo n.
 Proof.
 
   intros. destruct (eq_nat_dec n 0).
@@ -419,4 +419,4 @@ Proof.
   Grab Existential Variables. assumption.
 Qed.
 
-Print Assumptions Unnamed_thm.
+Print Assumptions prisons_eq.
