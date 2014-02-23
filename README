@@ -1,0 +1,17 @@
+http://rosettacode.org/wiki/100_doors
+
+Software: http://coq.inria.fr/
+Version: 8.4pl3
+
+The Two Implementations
+- base: prison.v/prison
+- optimized: prison_opt.v/prisoo
+
+Proof of Equality: prisons_eq.v/prisons_eq
+
+Proof Outline:
+math.v: Prove that squares are the only ones with odd number of divisors
+prison_opt_facts.v: prove that prisoo will only assign true at square indices
+prison_flip_list.v/prisonl: collect the pass number in a list if a door state was flipped
+prison_flip_list_facts.v/prisoneq: prove that the prison end state is equal to the evenness of of the list length
+prisons_eq.v: prove that prison = prisoo, using the facts proved before
