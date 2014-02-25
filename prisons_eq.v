@@ -419,4 +419,5 @@ Proof.
   Grab Existential Variables. assumption.
 Qed.
 
+Check prisons_eq.
 Print Assumptions prisons_eq.
