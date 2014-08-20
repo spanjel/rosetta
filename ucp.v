@@ -70,9 +70,9 @@ Lemma UIP_inp :
   forall A (dec : forall a b : A, {a=b}+{a<>b}) (l : list A) (spf : is_set dec l = true) x (p1 p2 : In x l), p1 = p2.
 Proof.
   induction l. simpl. intros. elim p1.
-  intros. assert (Hx := settail _ dec _ _ spf). simpl in *. destruct p1, p2.
-  - subst. assert (eq_refl = e0). apply Eqdep_dec.UIP_dec. assumption. rewrite H. reflexivity.
-  - destruct Hx. subst. elim H0. assumption.
-  - destruct Hx. subst. elim H0. assumption.
-  - destruct Hx. assert (Hy := IHl H _ i i0). subst. reflexivity.
+  intros. assert (Hx := settail _ dec _ _ spf). simpl in *. destruct Hx, p1, p2; subst.
+  - assert (Hx := Eqdep_dec.UIP_dec dec eq_refl e0). rewrite Hx. reflexivity.
+  - elim H0. assumption.
+  - elim H0. assumption.
+  - assert (Hy := IHl H _ i i0). subst. reflexivity.
 Qed.

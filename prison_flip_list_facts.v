@@ -243,7 +243,7 @@ Proof.
     destruct (prisonlbase cells). unfold proj1_sig.
     destruct (prisonlbase (S cells)).
     assert (S (length x) = length x0).
-      destruct a as [ _ [ _ [ _ [ xlen _ ] ] ] ]. destruct a0 as [ _ [ _ [ _ [ x0len _ ] ] ] ]. rewrite xlen, x0len. reflexivity.
+      destruct a as [ xlen _ ]. destruct a0 as [ x0len _ ]. rewrite xlen, x0len. reflexivity.
     clear a a0.
     destruct x0. simpl in *. discriminate.
     simpl. rewrite fliplem0divs. simpl. apply f_equal2; auto.
@@ -257,7 +257,7 @@ Proof.
 
   - destruct (prisonlbase cells). unfold proj1_sig.
     destruct x. simpl. constructor.
-    simpl. destruct a as [ _ [ _ [ endone _ ] ] ].
+    simpl. destruct a as [ _ [ endone _ ] ].
     simpl in endone. destruct (rev x ++ f::nil). constructor.
     apply endone. simpl. reflexivity.
 Qed.
@@ -364,13 +364,13 @@ Lemma prisonl_idxle :
 Proof.
   unfold prisonl. intros. rewrite Forall_forall. intros x xin.
   destruct (prisonlbase n) as [ base basepf ]. simpl in *.
-  destruct basepf as [ notnil [ endSSn [ beg1 [ baselen basecont ] ] ] ].
+  destruct basepf as [ baselen [ beg1 basecont ] ].
   destruct (fliplwhile _ _) as [ res respf ]. simpl in *.
   destruct respf as [ reslen resid ].
   rewrite idxidemrefl in resid.
   assert (rescont := idxidemidxc _ _ _ _ (eq_flip _ _ _ reslen) basecont resid).
   assert (Hx := idxend_ge _ _ rescont).
-  destruct base. elim notnil. reflexivity.
+  destruct base. simpl in *. subst. destruct res. simpl in *. elim xin. simpl in reslen. discriminate reslen.
   assert (Hy := Hx (fe_idx _ f)). clear Hx.
   assert (optmap (fliplelem (S (n + 0))) nat (fe_idx (S (n + 0)))
          (hd_error (rev res)) = Some (fe_idx 0 f)) as lastidreseqbase. clear Hy.
@@ -384,8 +384,10 @@ Proof.
   assert (Hz := Hy lastidreseqbase). clear Hy lastidreseqbase.
   rewrite Forall_forall in Hz.
   assert (Hx := Hz _ xin). clear Hz.
-  rewrite <- endSSn with (h := f). assumption.
-  simpl. reflexivity.
+  rewrite Hx. simpl in *. rewrite <- rev_length in baselen. destruct (rev base). simpl in *. rewrite beg1. rewrite <- baselen. constructor. constructor. reflexivity.
+  simpl in *. destruct basecont as [ _ basecont ].
+  assert (Hy := idxcont_idx _ _ _ _ basecont). rewrite (beg1 f0) in Hy; [ | reflexivity ].
+  rewrite Hy. rewrite <- baselen. simpl. constructor. constructor.
 Qed.
 
 Lemma prisonl_alldiv :

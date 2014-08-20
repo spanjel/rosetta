@@ -805,70 +805,98 @@ Proof.
   simpl. reflexivity.
 Qed.
 
+Lemma idxcont_unfold :
+  forall lim l h, hd_error l = value h -> (@idxcont lim l <-> idxcont' l (fe_idx _ h)).
+Proof.
+  destruct l. intros. discriminate.
+  intros. simpl in *. injection H. intro. subst. reflexivity.
+Qed.
+
+Lemma idxcont_unfold_nn :
+  forall lim l, @idxcont lim l <-> idxcont' l (match hd_error l with
+                                                 | error => 0
+                                                 | value h => fe_idx _ h
+                                               end).
+Proof.
+  intros. destruct l. simpl. reflexivity.
+  apply idxcont_unfold.
+  reflexivity.
+Qed.
+
+Lemma idxcont_idx :
+  forall lim l e n, idxcont' (l ++ e::nil) n -> fe_idx lim e = n + length l.
+Proof.
+  induction l. simpl. intros. rewrite plus_comm. simpl. apply H.
+  intros. simpl. assert (n + S (length l) = S n + length l). clear. omega.
+  rewrite H0. clear H0.
+  apply IHl. simpl in H. destruct H. rewrite H in H0. apply H0.
+Qed.
+
 Definition prisonlbase
-           (idx' : nat) :
-  { l : list (fliplelem 0) | l <> nil /\
-                             (forall h,
-                                hd_error l = Some h ->
-                                fe_idx _ h = S idx') /\
-                             (forall h,
-                                hd_error (rev l) = Some h ->
-                                fe_idx _ h = 1) /\
-                             length l = S idx' /\
-                             idxcont (rev l) }.
+           (len : nat) :
+  { l : list (fliplelem 0) |
+    length l = len /\
+    (forall h, hd_error (rev l) = Some h -> fe_idx _ h = 1) /\
+    idxcont (rev l) }.
 
 Proof.
-  induction idx'.
-
-  - pose (Build_fliplelem 0 1 (0::nil)).
-    assert (1 <> 0 /\
-            is_set eq_nat_dec (0 :: nil) = true /\
-            Forall (fun x : nat => 1 mod x = 0 /\ x <= 0) (0 :: nil) /\
-            (forall x : nat, x <= 0 -> (1 mod x = 0 <-> In x (0 :: nil)))).
-    split. intro. discriminate.
-    split. simpl. reflexivity.
-    split. rewrite Forall_forall. intros. simpl in H. destruct H; [ | elim H ]. rewrite <- H in *. split; auto.
-    intros. assert (x = 0). omega. rewrite H0 in *. simpl. split; auto.
-    pose (f H).
-    exists (f0::nil).
-    split. intro.  discriminate H0.
-    split. intros. simpl in H0. inversion H0. unfold f0. simpl. reflexivity.
-    simpl. split; auto.
-    intros. unfold f0 in H0. unfold f in H0. inversion H0. simpl. reflexivity.
-
-  - destruct IHidx'. destruct x. destruct a. elim H. reflexivity.
-    destruct a as [ _ [ a [ endone [ lres xc ] ] ] ].
-    assert (Hx := a f eq_refl). clear a.
-    pose (Build_fliplelem 0 (S (S idx')) (0::nil)).
-    assert (S (S idx') <> 0 /\
-            is_set eq_nat_dec (0 :: nil) = true /\
-            Forall (fun x : nat => S (S idx') mod x = 0 /\ x <= 0) (0 :: nil) /\
-            (forall x : nat, x <= 0 -> (S (S idx') mod x = 0 <-> In x (0 :: nil)))) as respf.
-      split. intro. discriminate.
-      split. simpl. reflexivity.
-      split. rewrite Forall_forall. intros. simpl in H. destruct H; [ | elim H ]. rewrite <- H in *. simpl. split; auto.
-      intros. assert (x0 = 0). omega. rewrite H0 in *. simpl. split; auto.
-   pose (f0 respf).
-   exists (f1::f::x).
-   split. intro. discriminate.
-   split. intros. simpl in H. inversion H. rewrite <- H1 in *. clear h H1.
-   unfold f1. unfold f0. simpl. reflexivity.
-   split. intros. simpl in endone. simpl in H. rewrite <- app_assoc in H. rewrite hd_error_app in H. apply endone. assumption.
-   split. simpl. rewrite <- lres. simpl. reflexivity.
-   unfold f0 in f1. clear f0.
-   simpl in *. remember (rev x). clear Heql x lres.
-   unfold idxcont in *. destruct l. simpl in *. rewrite Hx. auto.
-   simpl in *. split; [ reflexivity | ]. 
-   destruct xc as [ _ lfc ].
-   destruct f0. simpl in *. remember (S fe_idx0). revert lfc Hx. clear. intros.
-   assert (fe_idx _ f1 = S (S idx')). unfold f1. simpl. reflexivity.
-   remember f1. remember (S idx'). revert Hx H lfc. clear. intros.
-   apply idxcapp with (nn := S n0). assumption.
-   destruct l. simpl. unfold hdx. simpl. rewrite <- Hx. reflexivity.
-   simpl. rewrite <- Hx. apply f_equal. rewrite hdx2hd with (a := f).
-   rewrite rev_app_distr. simpl. reflexivity.
-   simpl. split; auto.
+  refine ((fix IHidx' len :=
+             match len
+                   as lenx
+                   return  len = lenx ->
+                           { l : list (fliplelem 0) |
+                             length l = len /\
+                             (forall h, hd_error (rev l) = Some h -> fe_idx _ h = 1) /\
+                             idxcont (rev l) }
+             with
+               | O => fun lenz => exist _ nil _
+               | S len' => fun lennz =>
+                             let rest := IHidx' len' in
+                             let pf := _ in
+                             let h := Build_fliplelem 0 len (0::nil) pf in
+                             exist _ (cons h (proj1_sig rest)) _
+             end eq_refl) len).
+  - subst. simpl. split; [ reflexivity | split; [ | constructor ] ].
+    intros. discriminate H.
+  - subst. simpl.
+    split; [ intro contra; discriminate contra | ].
+    split; [ auto | ].
+    split; [ auto | ].
+    intros x xle0. split; intro cond.
+    + left. revert xle0. clear. intro. omega.
+    + destruct cond as [ cond | cond ].
+      * subst. simpl. reflexivity.
+      * elim cond.
+  - split; [ | split ]; destruct rest as [ r' r'pf ]; simpl; clear IHidx'.
+    + destruct r'pf as [ r'len _ ]. rewrite r'len. rewrite lennz. reflexivity.
+    + simpl. destruct r'pf as [ r'len [ r'hdrev1 _ ] ].
+      intros h0 r'hsome. destruct len0. discriminate lennz.
+      induction r' as [ | hxx txx _ ] using rev_ind.
+      * simpl in r'len. subst. simpl in r'hsome. injection r'hsome.
+        intro heqh0. rewrite <- heqh0 in *. unfold h. simpl.
+        exact lennz.
+      * rewrite rev_app_distr in *. simpl in *.
+        injection r'hsome. intro hxxeqh0.
+        rewrite <- hxxeqh0 in *. clear h0 hxxeqh0 r'hsome h pf r'len.
+        apply r'hdrev1. reflexivity.
+    + clear len.
+      destruct r'pf as [ r'len [ r's1 r'c ] ]. rewrite <- r'len in *. clear len' r'len.
+      rewrite <- rev_length in lennz. remember (rev r') as l. clear r' Heql.
+      rename len0 into len.
+      unfold idxcont. unfold idxcont in r'c. destruct l; [ simpl; auto | ]. simpl; simpl in r'c. split; [ reflexivity | ]. destruct r'c as [ _ r'c ].
+      induction l using rev_ind; [ simpl in *; rewrite r's1; auto | ].
+      clear IHl.
+      assert (xidx := idxcont_idx _ _ _ _ r'c). SearchAbout idxcont.
+      assert (forall n, S n <> 0) as Snnz. clear. intros. intro. discriminate.
+      rewrite idxc2deriv with (nnz := Snnz _). rewrite idxc2deriv with (nnz := Snnz _) in r'c.
+      assert (Hy := derivcat).
+      apply (derivcat _ _ _ _ _ _ _ _ (fe_idx _ x) r'c).
+      * destruct l. simpl. unfold hdx. simpl. reflexivity.
+        simpl. rewrite hdxspeccase. reflexivity.
+      * simpl. unfold Sdec. rewrite lennz. rewrite xidx. rewrite r's1; [ | auto ]. clear.
+        destruct eq_nat_dec; [ constructor | ].
+        elim n. simpl. rewrite app_length. simpl. omega.
 Defined.
 
 Definition prisonl cells := let base := prisonlbase cells in
-                            fliplwhile _ (rev (proj1_sig base)) (proj2 (proj2 (proj2 (proj2 (proj2_sig base))))) cells.
+                            fliplwhile _ (rev (proj1_sig base)) (proj2 (proj2 (proj2_sig base))) cells.

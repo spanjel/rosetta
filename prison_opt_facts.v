@@ -119,7 +119,7 @@ Proof.
 Qed.
 
 Lemma prisooeq :
-  forall nd, map s2b (prisoo'' (S nd) prisoostack_root nil) = prisoo nd.
+  forall nd, map s2b (prisoo'' nd prisoostack_root nil) = prisoo nd.
 Proof.
   intros. unfold prisoo. unfold prisoostack_root. rewrite prisoo'''eq.
   simpl. reflexivity.

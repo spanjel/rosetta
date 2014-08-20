@@ -119,7 +119,7 @@ Proof.
 Qed.
 
 Lemma prisonlenn :
-  forall n, length (prison n) = S n.
+  forall n, length (prison n) = n.
 Proof.
   unfold prison.
   intros. rewrite flipwlen.
@@ -134,7 +134,7 @@ Proof.
 Qed.
 
 Lemma prisoolenn :
-  forall n, length (prisoo n) = S n.
+  forall n, length (prisoo n) = n.
 Proof.
   unfold prisoo. intro. rewrite prisoo'len. simpl. rewrite plus_comm. simpl. reflexivity.
 Qed.
@@ -249,6 +249,31 @@ Proof.
   apply IHl.
 Qed.
 
+Lemma idxcont_rev_hd :
+  forall lim l n,
+    idxcont (rev l) ->
+    (forall h, hd_error (rev l) = Some h -> fe_idx lim h = n) ->
+    (forall h, hd_error l = Some h -> S (fe_idx _ h) = n + length l).
+Proof.
+  intros. destruct l. simpl in H1. discriminate H1.
+  induction l as [ | l t _ ] using rev_ind. simpl in *. injection H1. intro. subst. rewrite H0; auto. rewrite plus_comm. auto.
+  simpl in *. injection H1. intro. subst. clear H1.
+  rewrite rev_app_distr in *. simpl in *. destruct H as [ _ H ].
+  assert (Hx := idxcont_idx _ _ _ _ H). simpl in *. rewrite rev_length in *.
+  rewrite app_length. simpl. rewrite plus_comm. simpl. rewrite (H0 l) in Hx; [ | reflexivity ].
+  omega.
+Qed.
+
+Lemma idxcont_rev_hd_1 :
+  forall lim l,
+    idxcont (rev l) ->
+    (forall h, hd_error (rev l) = Some h -> fe_idx lim h = 1) ->
+    (forall h, hd_error l = Some h -> fe_idx _ h = length l).
+Proof.
+  intros. assert (Hx := idxcont_rev_hd lim l 1 H H0 _ H1).
+  simpl in Hx. injection Hx. auto.
+Qed.
+
 Lemma with_idx_elim_prisonl :
   forall n,
     with_index (evenmap (S (n + 0)) (proj1_sig (prisonl n))) 1 =
@@ -256,23 +281,23 @@ Lemma with_idx_elim_prisonl :
 Proof.
   intros. assert (Hx := withindex_cont_eq).
   intros. unfold prisonl. remember (prisonlbase n). clear Heqs. destruct s as [ base basepf ]. simpl.
-  destruct basepf as [ x0notnil [ x0hSn [ x0e1 [ lx0Sn rx0cont ] ] ] ].
+  destruct basepf as [ lx0Sn [ x0e1 rx0cont ] ].
+  assert (x0hn := idxcont_rev_hd_1 _ _ rx0cont x0e1).
   assert (Hy := fun pf => Hx _ (rev base) 1 pf rx0cont). clear Hx.
-  assert (optmap (fliplelem 0) nat (fe_idx 0) (hd_error (rev base)) = Some 1) as tmp.
-    induction base using rev_ind; [ | clear IHbase ]. simpl in lx0Sn. discriminate.
-    rewrite rev_app_distr. simpl. rewrite rev_app_distr in x0e1. simpl in x0e1. rewrite x0e1. reflexivity. reflexivity.
+  induction base as [ | basee base _ ] using rev_ind. simpl in *. subst. simpl in *. reflexivity.
+  assert (optmap (fliplelem 0) nat (fe_idx 0) (hd_error (rev (base ++ basee::nil))) = Some 1) as tmp.
+    rewrite rev_app_distr. simpl. rewrite rev_app_distr in x0e1. simpl in x0e1. rewrite x0e1; reflexivity.
   assert (Hz := Hy tmp). clear Hy tmp. rewrite Forall_forall in Hz.
-  destruct (fliplwhile _ _ _ _). simpl in *.
-  destruct a as [ xlenrblen xid ].
-  assert (length x = length base). rewrite rev_length in xlenrblen. assumption.
+  destruct (fliplwhile _ _ _ _) as [ x [ xlenrblen xid ] ]. simpl in *.
+  assert (length x = length (base ++ basee::nil)). rewrite rev_length in xlenrblen. assumption.
   unfold evenmap. 
   rewrite with_index_map.
-  assert (idxcont x) as xcont. apply idxidemidxc with (l := rev base).
+  assert (idxcont x) as xcont. apply idxidemidxc with (l := rev (base ++ basee::nil)).
     rewrite H; auto. rewrite rev_length; auto. assumption. apply idxidemrefl. assumption.
   assert (forall h, hd_error x = Some h -> fe_idx _ h = 1).
     intros. destruct x. discriminate H0.
     simpl in H0. inversion H0. rewrite H2 in *. clear H2 f.
-    destruct (rev base). simpl in xlenrblen. discriminate.
+    destruct (rev (base ++ basee::nil)). simpl in xlenrblen. discriminate.
     destruct (idxidemunfold _ _ _ _ _ _ xid).
     rewrite H1. apply x0e1. simpl. reflexivity.
   revert H0 xcont. clear. intros.
@@ -315,53 +340,54 @@ Proof.
   assert (forall x, In x pwio -> (snd x) <> 0).
     rewrite Heqpwio. clear. intros. assert (Hx := withindindge _ _ _ _ H).
     intro. rewrite <- H0 in Hx. omega.
+
   cut (forall x (inpf : In x pwi), (~Even (length (divisors_nz (H _ inpf)))) <-> fst x = true).
   intro.
   cut (forall x (inpf : In x pwio), (issq (snd x)) <-> fst x = true).
   intro.
-  assert (forall x (inpf : In x pwi), (issq (snd x) <-> ~Even (length (divisors_nz (H _ inpf))))).
-    intros. apply sqne.
-  assert (forall x (inpf : In x pwio), (issq (snd x) <-> ~Even (length (divisors_nz (H0 _ inpf))))).
-    intros. apply sqne.
-  assert (lpeq := prisleneq). generalize lpeq. intro lpeqx.
-  specialize lpeq with n.
-  rewrite <- (withindeq _ (prison n) 1) in lpeq.
-  rewrite <- (withindeq _ (prisoo n) 1) in lpeq.
-  rewrite map_length in lpeq. rewrite <- Heqpwi in lpeq.
-  rewrite map_length in lpeq. rewrite <- Heqpwio in lpeq.
-  apply zipeq_left with lpeq.
-  generalize H. rename H into H'. intro H. rewrite <- Forall_forall in H.
-  generalize H0. rename H0 into H0'. intro H0. rewrite <- Forall_forall in H0.
-  assert (forall x (inpf : In x pwi), issq (snd x) <-> fst x = true).
-    intros. rewrite H3. apply H1.
-  rewrite Forall_forall. intros.
-  rewrite Forall_forall in H, H0.
-  assert (Hxx := H (fst x)). clear H.
-  assert (Hyy := H0 (snd x)). clear H0.
-  destruct x. simpl in *.
-  assert (H := inzipin).
-  assert (Hin := H _ _ _ _ _ _ H6). clear H. simpl in Hin. destruct Hin.
-  assert (pnz := Hxx H). clear Hxx.
-  assert (p0nz := Hyy H0). clear Hyy.
-  assert (Hxx := H2 _ H0).
-  assert (Hyy := H5 _ H).
-  generalize lpeq. intro lpeq'. rewrite Heqpwi in lpeq'. rewrite Heqpwio in lpeq'.
-  assert (Hxy := withindindeq _ _ _ 1 (lpeqx n)).
-  cut (snd p = snd p0).
-  intro. rewrite H7 in *.
-  rewrite Hyy in Hxx. destruct p; destruct p0.
-  simpl in *. rewrite H7. apply f_equal2; [ | reflexivity ].
-  destruct b; destruct b0; try reflexivity.
-  assert (contra := eq_refl true). rewrite Hxx in contra. discriminate contra.
-  assert (contra := eq_refl true). rewrite <- Hxx in contra. discriminate contra.
 
-  - subst. clear H3 H1 H4 lpeq' Hxx Hyy pnz p0nz lpeqx n0 H0' H H0 H2 H5 H'.
-    generalize lpeq. intro lpeq'.
-    rewrite <- map_length with (f:=@snd _ _) in lpeq'.
-    rewrite <- map_length with (f:=@snd _ _) in lpeq'.
-    assert (Hx := zipeq_right _ _ _ lpeq' Hxy).
-    rewrite Forall_forall in Hx.
-    assert (Hz := idxeq _ _ _ _ _ _ _ H6). simpl in Hz. assumption.
+  - assert (forall x (inpf : In x pwi), (issq (snd x) <-> ~Even (length (divisors_nz (H _ inpf))))).
+      intros. apply sqne.
+    assert (forall x (inpf : In x pwio), (issq (snd x) <-> ~Even (length (divisors_nz (H0 _ inpf))))).
+      intros. apply sqne.
+    assert (lpeq := prisleneq). generalize lpeq. intro lpeqx.
+    specialize lpeq with n.
+    rewrite <- (withindeq _ (prison n) 1) in lpeq.
+    rewrite <- (withindeq _ (prisoo n) 1) in lpeq.
+    rewrite map_length in lpeq. rewrite <- Heqpwi in lpeq.
+    rewrite map_length in lpeq. rewrite <- Heqpwio in lpeq.
+    apply zipeq_left with lpeq.
+    generalize H. rename H into H'. intro H. rewrite <- Forall_forall in H.
+    generalize H0. rename H0 into H0'. intro H0. rewrite <- Forall_forall in H0.
+    assert (forall x (inpf : In x pwi), issq (snd x) <-> fst x = true).
+      intros. rewrite (H3 _ inpf). apply H1.
+    rewrite Forall_forall. intros.
+    rewrite Forall_forall in H, H0.
+    assert (Hxx := H (fst x)). clear H.
+    assert (Hyy := H0 (snd x)). clear H0.
+    destruct x. simpl in *.
+    assert (H := inzipin).
+    assert (Hin := H _ _ _ _ _ _ H6). clear H. simpl in Hin. destruct Hin.
+    assert (pnz := Hxx H). clear Hxx.
+    assert (p0nz := Hyy H0). clear Hyy.
+    assert (Hxx := H2 _ H0).
+    assert (Hyy := H5 _ H).
+    generalize lpeq. intro lpeq'. rewrite Heqpwi in lpeq'. rewrite Heqpwio in lpeq'.
+    assert (Hxy := withindindeq _ _ _ 1 (lpeqx n)).
+    cut (snd p = snd p0).
+    + intro. rewrite H7 in *.
+      rewrite Hyy in Hxx. destruct p; destruct p0.
+      simpl in *. rewrite H7. apply f_equal2; [ | reflexivity ].
+      destruct b; destruct b0; try reflexivity.
+      assert (contra := eq_refl true). rewrite Hxx in contra. discriminate contra.
+      assert (contra := eq_refl true). rewrite <- Hxx in contra. discriminate contra.
+    + subst. clear H3 H1 H4 lpeq' Hxx Hyy pnz p0nz lpeqx n0 H0' H H0 H2 H5 H'.
+      generalize lpeq. intro lpeq'.
+      rewrite <- map_length with (f:=@snd _ _) in lpeq'.
+      rewrite <- map_length with (f:=@snd _ _) in lpeq'.
+      assert (Hx := zipeq_right _ _ _ lpeq' Hxy).
+      rewrite Forall_forall in Hx.
+      assert (Hz := idxeq _ _ _ _ _ _ _ H6). simpl in Hz. assumption.
 
   - intros. clear Heqpwi pwi H H1.
     rewrite <- prisooeq in Heqpwio.
@@ -411,12 +437,12 @@ Proof.
       destruct b; split; intro; auto. simpl in H. discriminate.
     rewrite H3. clear H3. rewrite <- even_spec.
     destruct x. inversion xdef. rewrite <- H5 in *.
-    unfold snd in H1. assert (forall n, In n fe_divs <-> In n (divisors_raw (H (b, n1) inpf))).
+    unfold snd in H1.
+    assert (forall n, In n fe_divs <-> In n (divisors_raw (H (b, n1) inpf))).
       intros. rewrite <- H1. rewrite Hy'. split; intro; assumption.
     clear Hy' H1.
     assert (Hx := setleneq _ _ _ _ fdivset H0 H3).
     rewrite Hx. split; intro; assumption.
-  Grab Existential Variables. assumption.
 Qed.
 
 Check prisons_eq.
