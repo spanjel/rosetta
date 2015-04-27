@@ -4,6 +4,8 @@ Require Import prison.
 Require Import Arith.
 Require Import NPeano.
 Require Import List.
+Require Import Nat.
+Require Import Omega.
 
 Require Import prison_facts.
 Require Import logic.

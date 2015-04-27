@@ -1,7 +1,9 @@
 Require Export prison_opt.
 Require Import math.
+
 Require Import List.
 Require Import Arith.
+Require Import Omega.
 
 Record prisoostack : Set :=
   {

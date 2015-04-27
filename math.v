@@ -3,6 +3,8 @@ Require Import List.
 Require Import Arith.
 Require Import Zquot.
 Require Import NPeano.
+Require Import PeanoNat.
+Import Nat.
 Require Export ucp.
 Require Export logic.
 Require Export list_facts.
@@ -16,6 +18,7 @@ Proof.
   apply eq_nat_dec.
 Defined.
 
+Require Import Omega.
 Lemma pltppq : forall p q, (0 <= q -> p <= p + q)%Z.
 Proof.
   intros. omega.
@@ -349,7 +352,7 @@ Proof.
   intros.
   destruct (eq_nat_dec n 0). simpl. subst. rewrite Nat.sqrt_0. auto.
   assert (sqrt n <> 0). intro. rewrite sqz in H. subst. elim n0. reflexivity.
-  destruct (sqrt_spec n). unfold lt in *.
+  destruct (sqrt_spec n); [ omega | ]. unfold lt in *.
   assert (Hx :=  Nat.div_le_lower_bound _ _ _ H H0). assumption.
 Qed.
 
@@ -368,7 +371,7 @@ Proof.
   assert (Hz := Nat.div_exact n (n / sqrt n) H0).
   generalize sqdiv. intro neqsq. rewrite <- Hy in neqsq. clear Hy.
   generalize ndsqdiv. intro neqnsq. rewrite <- Hz in neqnsq. clear Hz.
-  destruct (sqrt_spec n). unfold lt in H2. simpl in H2.
+  destruct (sqrt_spec n); [ omega | ]. unfold lt in H2. simpl in H2.
   assert (n <= sqrt n + sqrt n * S (sqrt n)). omega. clear H2.
   assert (sqrt n <= n / sqrt n <= 2 + sqrt n). split. 
     assumption. assert (Hxx := Nat.div_le_mono n (sqrt n + sqrt n * S (sqrt n)) _ H H3).
@@ -576,7 +579,7 @@ Proof.
 
   unfold divisors_nsr in leq. unfold divisors_nz in leq.
   assert ({f : {x | In x l} -> {x | In x l} | forall a, a <> f a /\ a = f (f a) /\ (In a x -> In (f a) x)}) as pairsig.
-  refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _). simpl. intro. split; [ | split ].
+  refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _); [ auto | ]. intro. split; [ | split ].
   - unfold pair. destruct a. unfold proj1_sig in *.
     assert (anz := innz _ i). assert (ndanz := inndnz _ i). assert (adiv := inldiv _ i). assert (ndadiv := divisorpair _ _ adiv).
     destruct (eq_nat_dec x0 (n / x0)) as [ x0eqndx0 | x0nendx0 ].
@@ -633,7 +636,7 @@ Proof.
 
     + unfold paired_list. intros a ainx.
       apply ainpain. assumption.
-Grab Existential Variables. apply pairin.
+Grab Existential Variables.
 Qed.
 
 Definition issq n := exists k, n = k * k.
@@ -764,11 +767,11 @@ Lemma divisorparity_nsq :
     Even (length (divisors_nz nnz)).
 Proof.
   intros n nnz nnsq.
-  assert (evenall := divisorcount _ nnz _ eq_refl).
+  assert (evenall := divisorcount _ nnz (divisors_nsr nnz)).
   unfold divisors_nsr in evenall.
   destruct (eq_nat_dec _ _).
   - elim nnsq. unfold issq. exists (sqrt n). assumption.
-  - assumption.
+  - apply evenall. reflexivity.
 Qed.
 
 Lemma divisorparity_sq :
@@ -777,7 +780,7 @@ Lemma divisorparity_sq :
     ~Even (length (divisors_nz nnz)).
 Proof.
   intros n nnz nnsq. intro nzev.
-  assert (evenall := divisorcount _ nnz _ eq_refl).
+  assert (evenall := divisorcount _ nnz (divisors_nsr nnz)).
   unfold divisors_nsr in evenall.
   destruct (eq_nat_dec _ _).
   - destruct (divisorspf nnz) as [ lzset indiv ].

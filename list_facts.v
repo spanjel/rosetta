@@ -428,13 +428,14 @@ Proof.
       assumption.
 Qed.
 
+Require Import PeanoNat.
 Lemma paired_even :
   forall
     A
     eq_dec
     (pair : {pair | (forall a, a <> pair a) /\ (forall a b : A, a <> b -> pair a <> b -> a <> pair b)})
     (l_paired : {l | is_set eq_dec l = true /\ paired_list (proj1_sig pair) l}),
-  Even (length (proj1_sig l_paired)).
+  Nat.Even (length (proj1_sig l_paired)).
 Proof.
   intros.
   destruct pair as [ pair [ notid involutive ] ].
@@ -466,7 +467,7 @@ Proof.
     assert (In (pair a) l) as painl. simpl in Hz. destruct Hz. elim n0. assumption. assumption. clear Hz.
     assert (Hz := lrm _ _ _ lset _ painl). simpl in Heqn. rewrite Hz in Heqn. injection Heqn. intro. clear Hz.
     assert (Hz := Hx H). revert Hz. clear. intro neven.
-    unfold Even in *. destruct neven. rewrite H.
+    unfold Nat.Even in *. destruct neven. rewrite H.
     exists (S x). simpl. auto.
 Qed.
 
@@ -479,7 +480,7 @@ Lemma paired_even' :
     (pairpf2 : forall a b : A, a <> b -> pair a <> b -> a <> pair b)
     l
     (l_paired : is_set eq_dec l = true /\ paired_list pair l),
-  Even (length l).
+  Nat.Even (length l).
 Proof.
   intros. assert (Hx := paired_even _ _ (exist _ pair (conj pairpf1 pairpf2)) (exist _ _ l_paired)).
   simpl in Hx. assumption.
@@ -527,3 +528,14 @@ Proof.
   simpl. reflexivity.
 Qed.
 
+Lemma rev_unit : forall A (a : A) l, rev l = a::nil -> l = a::nil.
+Proof.
+  intros.
+  assert (length (rev l) = 1). rewrite H. simpl. reflexivity.
+  destruct l; [ discriminate H0 | ].
+  destruct l; [ solve [ auto ] | ].
+  simpl in H0. rewrite <- app_assoc in H0. rewrite app_length in H0.
+  simpl in H0. remember (length _). exfalso. revert H0. clear.
+  intros.
+  rewrite Nat.add_comm in H0. simpl in H0. discriminate H0.
+Qed.

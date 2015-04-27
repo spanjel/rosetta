@@ -7,8 +7,11 @@ Require Import prison_opt_facts.
 Require Import prison_flip_list_facts.
 
 Require Import NPeano.
+Require Import PeanoNat.
 Require Import List.
 Require Import Arith.
+Require Import Omega.
+Require Import Nat.
 
 Fixpoint with_index {A} (l : list A) (idx : nat) :=
   match l with
@@ -324,7 +327,8 @@ Proof.
   - apply (idxcontt_app _ _ _ _ xcont eq_refl).
 Qed.
 
-Lemma prisons_eq : forall n, prison n = prisoo n.
+Import Nat.
+Goal forall n, prison n = prisoo n.
 Proof.
 
   intros. destruct (eq_nat_dec n 0).
@@ -379,8 +383,8 @@ Proof.
       rewrite Hyy in Hxx. destruct p; destruct p0.
       simpl in *. rewrite H7. apply f_equal2; [ | reflexivity ].
       destruct b; destruct b0; try reflexivity.
-      assert (contra := eq_refl true). rewrite Hxx in contra. discriminate contra.
-      assert (contra := eq_refl true). rewrite <- Hxx in contra. discriminate contra.
+      * destruct Hxx. rewrite H8; reflexivity.
+      * rewrite Hxx. reflexivity.
     + subst. clear H3 H1 H4 lpeq' Hxx Hyy pnz p0nz lpeqx n0 H0' H H0 H2 H5 H'.
       generalize lpeq. intro lpeq'.
       rewrite <- map_length with (f:=@snd _ _) in lpeq'.
@@ -445,5 +449,4 @@ Proof.
     rewrite Hx. split; intro; assumption.
 Qed.
 
-Check prisons_eq.
-Print Assumptions prisons_eq.
+Print Assumptions Unnamed_thm.

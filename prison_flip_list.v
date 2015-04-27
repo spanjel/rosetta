@@ -1,8 +1,10 @@
+Require Import math.
+
 Require Import List.
 
 Require Import NPeano.
-Require Import math.
 Require Import Arith.
+Require Import Omega.
 
 Require Import list_facts.
 
@@ -814,8 +816,8 @@ Qed.
 
 Lemma idxcont_unfold_nn :
   forall lim l, @idxcont lim l <-> idxcont' l (match hd_error l with
-                                                 | error => 0
-                                                 | value h => fe_idx _ h
+                                                 | None => 0
+                                                 | Some h => fe_idx _ h
                                                end).
 Proof.
   intros. destruct l. simpl. reflexivity.
@@ -840,12 +842,12 @@ Definition prisonlbase
     idxcont (rev l) }.
 
 Proof.
-  refine ((fix IHidx' len :=
-             match len
+  refine ((fix IHidx' len0 :=
+             match len0
                    as lenx
-                   return  len = lenx ->
+                   return  len0 = lenx ->
                            { l : list (fliplelem 0) |
-                             length l = len /\
+                             length l = len0 /\
                              (forall h, hd_error (rev l) = Some h -> fe_idx _ h = 1) /\
                              idxcont (rev l) }
              with
@@ -853,7 +855,7 @@ Proof.
                | S len' => fun lennz =>
                              let rest := IHidx' len' in
                              let pf := _ in
-                             let h := Build_fliplelem 0 len (0::nil) pf in
+                             let h := Build_fliplelem 0 len0 (0::nil) pf in
                              exist _ (cons h (proj1_sig rest)) _
              end eq_refl) len).
   - subst. simpl. split; [ reflexivity | split; [ | constructor ] ].
@@ -880,13 +882,14 @@ Proof.
         rewrite <- hxxeqh0 in *. clear h0 hxxeqh0 r'hsome h pf r'len.
         apply r'hdrev1. reflexivity.
     + clear len.
-      destruct r'pf as [ r'len [ r's1 r'c ] ]. rewrite <- r'len in *. clear len' r'len.
+      remember pf. clear pf Heqa. rename a into pf.
+      destruct r'pf as [ r'len [ r's1 r'c ] ]. rewrite <- r'len in lennz. clear len' r'len.
       rewrite <- rev_length in lennz. remember (rev r') as l. clear r' Heql.
       rename len0 into len.
       unfold idxcont. unfold idxcont in r'c. destruct l; [ simpl; auto | ]. simpl; simpl in r'c. split; [ reflexivity | ]. destruct r'c as [ _ r'c ].
       induction l using rev_ind; [ simpl in *; rewrite r's1; auto | ].
       clear IHl.
-      assert (xidx := idxcont_idx _ _ _ _ r'c). SearchAbout idxcont.
+      assert (xidx := idxcont_idx _ _ _ _ r'c).
       assert (forall n, S n <> 0) as Snnz. clear. intros. intro. discriminate.
       rewrite idxc2deriv with (nnz := Snnz _). rewrite idxc2deriv with (nnz := Snnz _) in r'c.
       assert (Hy := derivcat).
