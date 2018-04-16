@@ -579,7 +579,7 @@ Proof.
 
   unfold divisors_nsr in leq. unfold divisors_nz in leq.
   assert ({f : {x | In x l} -> {x | In x l} | forall a, a <> f a /\ a = f (f a) /\ (In a x -> In (f a) x)}) as pairsig.
-  refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _); [ auto | ]. intro. split; [ | split ].
+  unshelve refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _); [ auto | ]. intro. split; [ | split ].
   - unfold pair. destruct a. unfold proj1_sig in *.
     assert (anz := innz _ i). assert (ndanz := inndnz _ i). assert (adiv := inldiv _ i). assert (ndadiv := divisorpair _ _ adiv).
     destruct (eq_nat_dec x0 (n / x0)) as [ x0eqndx0 | x0nendx0 ].
@@ -617,7 +617,7 @@ Proof.
     apply iftheneven. split.
 
     + assert (is_set eq_nat_dec l = true) as lset. rewrite leq. destruct (eq_nat_dec n (sqrt n * sqrt n)); repeat apply setrm; assumption.
-      rewrite <- e in lset. revert lset inpirr. clear. intros lset inpirr. remember (proj1_sig (P:=fun x : nat => In x l)).
+      rewrite <- e in lset. revert lset inpirr. clear. intros lset inpirr. remember (proj1_sig (P:=fun x : nat => In x l)) as y.
       induction x. simpl. reflexivity.
       simpl in *.
       destruct (inb _ _ (map y x)) eqn:x0inl. discriminate.

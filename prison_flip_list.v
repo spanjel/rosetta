@@ -842,7 +842,7 @@ Definition prisonlbase
     idxcont (rev l) }.
 
 Proof.
-  refine ((fix IHidx' len0 :=
+  unshelve refine ((fix IHidx' len0 :=
              match len0
                    as lenx
                    return  len0 = lenx ->
@@ -858,8 +858,6 @@ Proof.
                              let h := Build_fliplelem 0 len0 (0::nil) pf in
                              exist _ (cons h (proj1_sig rest)) _
              end eq_refl) len).
-  - subst. simpl. split; [ reflexivity | split; [ | constructor ] ].
-    intros. discriminate H.
   - subst. simpl.
     split; [ intro contra; discriminate contra | ].
     split; [ auto | ].
@@ -869,6 +867,8 @@ Proof.
     + destruct cond as [ cond | cond ].
       * subst. simpl. reflexivity.
       * elim cond.
+  - subst. simpl. split; [ reflexivity | split; [ | constructor ] ].
+    intros. discriminate H.
   - split; [ | split ]; destruct rest as [ r' r'pf ]; simpl; clear IHidx'.
     + destruct r'pf as [ r'len _ ]. rewrite r'len. rewrite lennz. reflexivity.
     + simpl. destruct r'pf as [ r'len [ r'hdrev1 _ ] ].

@@ -1,7 +1,7 @@
 http://rosettacode.org/wiki/100_doors
 
 Software: http://coq.inria.fr/
-Version: 8.5beta
+Version: 8.7.2
 
 The Two Implementations
 - base: prison.v/prison
@@ -15,3 +15,5 @@ prison_opt_facts.v: prove that prisoo will only assign true at square indices
 prison_flip_list.v/prisonl: collect the pass number in a list if a door state was flipped
 prison_flip_list_facts.v/prisoneq: prove that the prison end state is equal to the evenness of of the list length
 prisons_eq.v: prove that prison = prisoo, using the facts proved before
+
+build: for a in ucp.v logic.v nat_facts.v list_facts.v math.v prison.v prison_facts.v prison_flip_list.v prison_flip_list_facts.v prison_opt.v prison_opt_facts.v prisons_eq.v; do coqc $a; done
