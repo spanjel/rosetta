@@ -1,7 +1,7 @@
 http://rosettacode.org/wiki/100_doors
 
 Software: http://coq.inria.fr/
-Version: 8.7.2
+Version: 8.9.0
 
 The Two Implementations
 - base: prison.v/prison
