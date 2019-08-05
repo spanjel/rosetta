@@ -26,7 +26,7 @@ Qed.
 
 Lemma Zneglt0 : forall p, (Z.neg p < 0)%Z.
 Proof.
-  intros. unfold Zlt. simpl. reflexivity.
+  intros. unfold Z.lt. simpl. reflexivity.
 Qed.
 
 Lemma ltneqgt : forall p q, (p < q -> p > q -> False)%Z.
@@ -66,7 +66,7 @@ Proof.
   rewrite H. clear H. rewrite Zmult_plus_distr_r.
   rewrite Zmult_comm. assert (forall z, (1 * z = z)%Z); [ intros; omega | ].
   rewrite H. clear H.
-  rewrite ltadd. simpl. unfold Zle. simpl. intro. discriminate.
+  rewrite ltadd. simpl. unfold Z.le. simpl. intro. discriminate.
 Qed.
 
 Lemma itenat2Z :
