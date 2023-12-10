@@ -3,7 +3,7 @@ Require Import math.
 
 Require Import List.
 Require Import Arith.
-Require Import Omega.
+Require Import Lia.
 
 Record prisoostack : Set :=
   {
@@ -32,11 +32,11 @@ Proof.
   set (res := Build_prisoostack (S ps_idx0) (S ps_n0) (ps_n0 + ps_n0)).
 
   assert (S (S (ps_n0 + ps_n0)) <= S ps_n0 + S ps_n0) as ps_kle'.
-    omega.
+    lia.
 
   assert ((S ps_n0) * (S ps_n0) = (S ps_idx0) + (ps_n0 + ps_n0)) as ps_idxksq'.
     remember (S ps_n0) as n.
-    subst. simpl. apply f_equal. rewrite mult_comm. simpl. rewrite ps_idxksq0. rewrite (plus_comm _ 0). simpl. rewrite plus_assoc. rewrite plus_comm. reflexivity.
+    subst. simpl. apply f_equal. rewrite Nat.mul_comm. simpl. rewrite ps_idxksq0. rewrite (Nat.add_comm _ 0). simpl. rewrite Nat.add_assoc. rewrite Nat.add_comm. reflexivity.
 
   assert (issq (S ps_idx0) <-> ps_n0 + ps_n0 = 0) as ps_idxsqkz'.
   - split; intro.
@@ -46,7 +46,7 @@ Proof.
       * subst. revert ps_idxksq0. clear. intros. simpl in *. destruct ps_n0. reflexivity.
         discriminate.
       * elim Hy with ps_idx0; assumption.
-    + destruct ps_n0. simpl in *. rewrite plus_comm in ps_idxksq0. simpl in *. subst. exists 1. reflexivity.
+    + destruct ps_n0. simpl in *. rewrite Nat.add_comm in ps_idxksq0. simpl in *. subst. exists 1. reflexivity.
       discriminate.
   - exists (res ps_kle' ps_idxksq' ps_idxsqkz'); auto.
 Defined.
@@ -58,22 +58,22 @@ Proof.
   set (res := Build_prisoostack (S ps_idx0) ps_n0 ps_k0).
 
   assert (S (S ps_k0) <= ps_n0 + ps_n0) as ps_kle'.
-    revert ps_kle0. clear. intro. omega.
+    revert ps_kle0. clear. intro. lia.
 
   assert (ps_n0 * ps_n0 = (S ps_idx0) + ps_k0) as ps_idxksq'.
-    simpl. rewrite ps_idxksq0. rewrite plus_comm. simpl. rewrite plus_comm. reflexivity.
+    simpl. rewrite ps_idxksq0. rewrite Nat.add_comm. simpl. rewrite Nat.add_comm. reflexivity.
 
   rename ps_k0 into k'.
   assert (issq (S ps_idx0) <-> k' = 0) as ps_idxsqkz'; [ clear knz res | ].
-    split; intro; [ | exists ps_n0; rewrite ps_idxksq0; subst; rewrite plus_comm; reflexivity ].
+    split; intro; [ | exists ps_n0; rewrite ps_idxksq0; subst; rewrite Nat.add_comm; reflexivity ].
     assert (issq (ps_n0 * ps_n0)). exists ps_n0. reflexivity.
     destruct (eq_nat_dec k' 0) as [ kz | knz ]. assumption. exfalso.
     assert (S ps_idx0 < ps_n0 * ps_n0).
-      rewrite ps_idxksq'. revert knz. clear. intro. omega.
+      rewrite ps_idxksq'. revert knz. clear. intro. lia.
     assert (S ps_idx0 <> 0). intro. discriminate H2.
     assert (Hx := minsqdiff _ _ H H0 H1 H2). rewrite NPeano.Nat.sqrt_square in Hx.
-    rewrite ps_idxksq' in Hx. rewrite plus_comm in Hx. rewrite NPeano.Nat.add_sub in Hx.
-    simpl in Hx. omega.
+    rewrite ps_idxksq' in Hx. rewrite Nat.add_comm in Hx. rewrite NPeano.Nat.add_sub in Hx.
+    simpl in Hx. lia.
 
   exists (res ps_kle' ps_idxksq' ps_idxsqkz'); auto.
 Defined.

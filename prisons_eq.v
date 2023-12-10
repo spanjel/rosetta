@@ -10,7 +10,7 @@ Require Import NPeano.
 Require Import PeanoNat.
 Require Import List.
 Require Import Arith.
-Require Import Omega.
+Require Import Lia.
 Require Import Nat.
 
 Fixpoint with_index {A} (l : list A) (idx : nat) :=
@@ -35,7 +35,7 @@ Proof.
   induction l. simpl. intros. contradiction.
   simpl. intros. destruct H.
   - rewrite <- H in *. simpl. constructor.
-  - assert (Hx := IHl _ _ H). omega.
+  - assert (Hx := IHl _ _ H). lia.
 Qed.
 
 Lemma withindindeq :
@@ -133,13 +133,13 @@ Lemma prisoo'len :
   forall n x y l, length (prisoo' n x y l) = n + length l.
 Proof.
   induction n. simpl. intros. rewrite rev_length. reflexivity.
-  intros. simpl. rewrite IHn. simpl. rewrite plus_comm. simpl. rewrite plus_comm. reflexivity.
+  intros. simpl. rewrite IHn. simpl. rewrite Nat.add_comm. simpl. rewrite Nat.add_comm. reflexivity.
 Qed.
 
 Lemma prisoolenn :
   forall n, length (prisoo n) = n.
 Proof.
-  unfold prisoo. intro. rewrite prisoo'len. simpl. rewrite plus_comm. simpl. reflexivity.
+  unfold prisoo. intro. rewrite prisoo'len. simpl. rewrite Nat.add_comm. simpl. reflexivity.
 Qed.
 
 Lemma prisleneq :
@@ -202,24 +202,24 @@ Lemma withindex_unfold :
   forall A l (a : A) n,
     with_index (l ++ a::nil) n = with_index l n ++ ((a, n + length l)::nil).
 Proof.
-  induction l.  simpl. intros. rewrite plus_comm. simpl. reflexivity.
+  induction l.  simpl. intros. rewrite Nat.add_comm. simpl. reflexivity.
   intros. 
   assert (IHl' := IHl a0 (S n)). clear IHl.
-  simpl. rewrite IHl'. rewrite (plus_comm n). simpl. rewrite plus_comm. reflexivity.
+  simpl. rewrite IHl'. rewrite (Nat.add_comm n). simpl. rewrite Nat.add_comm. reflexivity.
 Qed.
 
 Lemma withindex_app :
   forall A (l ll : list A) n,
     with_index (l ++ ll) n = (with_index l n) ++ (with_index ll (n + length l)).
 Proof.
-  induction l using rev_ind. simpl. intros. rewrite plus_comm. simpl. reflexivity.
+  induction l using rev_ind. simpl. intros. rewrite Nat.add_comm. simpl. reflexivity.
   intros. assert (IHl' := IHl (x::ll) n). clear IHl.
   rewrite <- app_assoc. simpl in *. rewrite IHl'.
   rewrite (withindex_unfold _ l x).
   rewrite <- app_assoc.
   apply f_equal2; [ reflexivity | ].
   simpl. apply f_equal2; [ reflexivity | ].
-  rewrite app_length. simpl. rewrite (plus_comm _ 1). simpl. rewrite (plus_comm n (S _)). simpl. rewrite plus_comm. reflexivity.
+  rewrite app_length. simpl. rewrite (Nat.add_comm _ 1). simpl. rewrite (Nat.add_comm n (S _)). simpl. rewrite Nat.add_comm. reflexivity.
 Qed.
 
 Lemma withindex_cont_eq :
@@ -259,12 +259,12 @@ Lemma idxcont_rev_hd :
     (forall h, hd_error l = Some h -> S (fe_idx _ h) = n + length l).
 Proof.
   intros. destruct l. simpl in H1. discriminate H1.
-  induction l as [ | l t _ ] using rev_ind. simpl in *. injection H1. intro. subst. rewrite H0; auto. rewrite plus_comm. auto.
+  induction l as [ | l t _ ] using rev_ind. simpl in *. injection H1. intro. subst. rewrite H0; auto. rewrite Nat.add_comm. auto.
   simpl in *. injection H1. intro. subst. clear H1.
   rewrite rev_app_distr in *. simpl in *. destruct H as [ _ H ].
   assert (Hx := idxcont_idx _ _ _ _ H). simpl in *. rewrite rev_length in *.
-  rewrite app_length. simpl. rewrite plus_comm. simpl. rewrite (H0 l) in Hx; [ | reflexivity ].
-  omega.
+  rewrite app_length. simpl. rewrite Nat.add_comm. simpl. rewrite (H0 l) in Hx; [ | reflexivity ].
+  lia.
 Qed.
 
 Lemma idxcont_rev_hd_1 :
@@ -279,8 +279,8 @@ Qed.
 
 Lemma with_idx_elim_prisonl :
   forall n,
-    with_index (evenmap (S (n + 0)) (proj1_sig (prisonl n))) 1 =
-    map (fun e => (even (length (fe_divs _ e)), fe_idx _ e)) (proj1_sig (prisonl n)).
+    with_index (oddmap (S (n + 0)) (proj1_sig (prisonl n))) 1 =
+    map (fun e => (odd (length (fe_divs _ e)), fe_idx _ e)) (proj1_sig (prisonl n)).
 Proof.
   intros. assert (Hx := withindex_cont_eq).
   intros. unfold prisonl. remember (prisonlbase n). clear Heqs. destruct s as [ base basepf ]. simpl.
@@ -293,7 +293,7 @@ Proof.
   assert (Hz := Hy tmp). clear Hy tmp. rewrite Forall_forall in Hz.
   destruct (fliplwhile _ _ _ _) as [ x [ xlenrblen xid ] ]. simpl in *.
   assert (length x = length (base ++ basee::nil)). rewrite rev_length in xlenrblen. assumption.
-  unfold evenmap. 
+  unfold oddmap. 
   rewrite with_index_map.
   assert (idxcont x) as xcont. apply idxidemidxc with (l := rev (base ++ basee::nil)).
     rewrite H; auto. rewrite rev_length; auto. assumption. apply idxidemrefl. assumption.
@@ -320,7 +320,7 @@ Proof.
       assert (Some (fe_idx (S (n + 0)) f) = Some 1).
         rewrite fid1. reflexivity.
       assert (Hz := Hy H eq_refl). inversion Hz. clear.
-      rewrite app_length. simpl. rewrite (plus_comm _ 1). simpl. reflexivity.
+      rewrite app_length. simpl. rewrite (Nat.add_comm _ 1). simpl. reflexivity.
   - intros. apply H0.
     destruct x0. simpl in H. discriminate.
     simpl in *. assumption.
@@ -340,10 +340,10 @@ Proof.
   cut (pwi = pwio). intro. rewrite H. reflexivity.
   assert (forall x, In x pwi -> (snd x) <> 0).
     rewrite Heqpwi. clear. intros. assert (Hx := withindindge _ _ _ _ H).
-    intro. rewrite <- H0 in Hx. omega.
+    intro. rewrite <- H0 in Hx. lia.
   assert (forall x, In x pwio -> (snd x) <> 0).
     rewrite Heqpwio. clear. intros. assert (Hx := withindindge _ _ _ _ H).
-    intro. rewrite <- H0 in Hx. omega.
+    intro. rewrite <- H0 in Hx. lia.
 
   cut (forall x (inpf : In x pwi), (~Even (length (divisors_nz (H _ inpf)))) <-> fst x = true).
   intro.
@@ -393,7 +393,8 @@ Proof.
       rewrite Forall_forall in Hx.
       assert (Hz := idxeq _ _ _ _ _ _ _ H6). simpl in Hz. assumption.
 
-  - intros. clear Heqpwi pwi H H1.
+  - intros.
+    clear Heqpwi pwi H H1.
     rewrite <- prisooeq in Heqpwio.
     rewrite with_idx_elim_prisoo in Heqpwio.
     rewrite Heqpwio in inpf. remember (prisoo'' _ _ _). revert inpf. clear.
@@ -408,7 +409,7 @@ Proof.
     + apply IHl. assumption.
 
   - intros. clear Heqpwio pwio H0.
-    destruct (divisorspf (H x inpf)).
+    destruct (divisorspf (H x inpf)). rewrite znd.
     rewrite prisoneq in Heqpwi.
     assert (Hx := prisonl_idxle n).
     assert (Hy := prisonl_alldiv n).
@@ -417,36 +418,34 @@ Proof.
     destruct (prisonl n) as [ pd pdpf ]. simpl in *. clear pdpf.
     assert (In x (map
              (fun e : fliplelem (S (n + 0)) =>
-              (even (length (fe_divs (S (n + 0)) e)), fe_idx (S (n + 0)) e))
+              (odd (length (fe_divs (S (n + 0)) e)), fe_idx (S (n + 0)) e))
              pd)).
-      rewrite <- Heqpwi. assumption.
-    assert (exists e, In e pd /\ x = (even (length (fe_divs (S (n + 0)) e)), fe_idx (S (n + 0)) e)).
+    { rewrite <- Heqpwi. assumption. }      
+    assert (exists e, In e pd /\ x = (odd (length (fe_divs (S (n + 0)) e)), fe_idx (S (n + 0)) e)).
+    {  
       revert H2. clear. intros. induction pd. elim H2.
       simpl in H2. destruct H2.
         exists a. simpl. split; [ left; reflexivity | ]. rewrite H. reflexivity.
       assert (Hxx := IHpd H). destruct Hxx. exists x0. simpl. split; [ right | ]; apply H0.
-    destruct H3. destruct H3 as [ x0inpd xdef ].
-    assert (Hy' := Hy _ x0inpd). clear Hy.
+    }
+    destruct H3. destruct H3 as [ x0inpd xdef ]. rewrite <- even_spec. rewrite xdef at 3. unfold fst.
+    destruct x. inversion xdef. rewrite <- H5 in *. unfold snd in H1.
+    assert (Hy := Hy _ x0inpd).
     destruct x0. simpl in *. clear x0inpd Hx Heqpwi.
     destruct fe_invariant as [ fidnz [ fdivset [ _ _ ] ] ].
-    rewrite xdef at 3. unfold fst in *.
-    unfold divisors_nz.
-    assert (~ Even (length (remove eq_nat_dec 0 (divisors_raw (H x inpf)))) <-> Even (length (divisors_raw (H x inpf)))).
-      assert (Hx := divlcontainsn _ (H x inpf)). cbv zeta in Hx. destruct Hx as [ zin _ ].
-      assert (Hy := lrm _ eq_nat_dec _ H0 _ zin).
-      rewrite Hy. clear. remember (length _). clear.
-      repeat rewrite <- even_spec.
-      rewrite Nat.even_succ.
-      rewrite <- Nat.negb_even. remember (even n). clear.
-      destruct b; split; intro; auto. simpl in H. discriminate.
-    rewrite H3. clear H3. rewrite <- even_spec.
-    destruct x. inversion xdef. rewrite <- H5 in *.
-    unfold snd in H1.
-    assert (forall n, In n fe_divs <-> In n (divisors_raw (H (b, n1) inpf))).
-      intros. rewrite <- H1. rewrite Hy'. split; intro; assumption.
-    clear Hy' H1.
+    subst n1.
+    assert (forall n, In n fe_divs <-> In n (divisors_raw (H (b, fe_idx) inpf))).
+    { intros. rewrite <- H1. rewrite Hy. split; intro; assumption. }
+    clear Hy H1.
     assert (Hx := setleneq _ _ _ _ fdivset H0 H3).
-    rewrite Hx. split; intro; assumption.
+    rewrite Hx. remember (length (divisors_raw _)). clear.
+    rewrite <- negb_even. destruct (even n1); compute.
+    + split; intros.
+      * exfalso. apply H. reflexivity.
+      * discriminate.
+    + split; intros.
+      * reflexivity.
+      * discriminate.
 Qed.
 
 Print Assumptions Unnamed_thm.

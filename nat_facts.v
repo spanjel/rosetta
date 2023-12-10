@@ -1,7 +1,8 @@
 Require Import Arith.
 Require Import List.
+Require Import Lia.
+
 Require Export logic.
-Require Import Omega.
 
 Lemma Olen : forall n, 0 <= n. intro. induction n. constructor. constructor. assumption. Qed.
 
@@ -13,12 +14,12 @@ Proof.
 Qed.
 
 Lemma nlemSnleSm : forall n m, n <= m <-> S n <= S m.
-Proof with omega.
+Proof with lia.
   intros...
 Qed.
 
 Lemma nlemnnemnlem : forall n m, n <= m -> n <> m -> n < m.
-Proof. intros. omega. Qed.
+Proof. intros. lia. Qed.
 
 Definition nat_interval_ind k (P : nat -> Type) (pfk : forall n, n < k -> P n) (pfx : forall n, k <= n -> P n) : forall n, P n.
 Proof.

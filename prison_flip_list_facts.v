@@ -5,13 +5,13 @@ Require Import Arith.
 Require Import NPeano.
 Require Import List.
 Require Import Nat.
-Require Import Omega.
+Require Import Lia.
 
 Require Import prison_facts.
 Require Import logic.
 Require Import list_facts.
 
-Definition evenmap lim (l : list (fliplelem lim)) := map (fun c => even (length (fe_divs _ c))) l.
+Definition oddmap lim (l : list (fliplelem lim)) := map (fun c => odd (length (fe_divs _ c))) l.
 
 Lemma consconv_proj1_sig_distr :
   forall lim h l lx ex,
@@ -31,8 +31,8 @@ Qed.
 
 Lemma flipeqflipl :
   forall lim l lpf k kpf l',
-    l' = (evenmap lim l) ->
-    flip l' lim k = evenmap _ (proj1_sig (flipl _ l lpf k kpf)).
+    l' = (oddmap lim l) ->
+    flip l' lim k = oddmap _ (proj1_sig (flipl _ l lpf k kpf)).
 Proof.
   intros. rewrite H in *. clear H l'. revert lpf k kpf.
   induction l. simpl. reflexivity.
@@ -40,18 +40,18 @@ Proof.
 
   - rewrite (consconv_proj1_sig_distr _ a l).
     unfold plus at 1 in kpf.
-    unfold evenmap. rewrite mapunfold. apply f_equal2.
+    unfold oddmap. rewrite mapunfold. apply f_equal2.
     + destruct (fliplkzh _ _ _ _ _) as [ x [ xid xdiv ] ]. unfold dropsnd. unfold proj1_sig.
       rewrite xdiv. remember (fe_divs _ a).
       clear. assert (length (S lim::l0) = S (length l0)) as tmp. simpl. reflexivity.
       rewrite tmp. clear tmp.
-      rewrite Nat.even_succ.
-      rewrite Nat.negb_even.
+      rewrite Nat.odd_succ.
+      rewrite Nat.negb_odd.
       reflexivity.
-    + unfold evenmap in *. rewrite <- IHl. reflexivity.
+    + unfold oddmap in *. rewrite <- IHl. reflexivity.
 
   - rewrite (consconv_proj1_sig_distr _ a l).
-    unfold evenmap in *.
+    unfold oddmap in *.
     rewrite mapunfold.
     apply f_equal2.
     + destruct (fliplknzh _ _ _ _ _ _) as [ x [ xid xdiv ] ].
@@ -62,19 +62,19 @@ Qed.
 
 Lemma flipeacheqflipleach :
   forall lim l cpf l',
-    l' = evenmap lim l ->
+    l' = oddmap lim l ->
     match l with
       | nil => True
       | h::_ => fe_idx _ h = 1
     end ->
-    flipeach l' lim = evenmap _ (proj1_sig (flipleach lim l cpf)).
+    flipeach l' lim = oddmap _ (proj1_sig (flipleach lim l cpf)).
 Proof.
   intros. unfold flipleach. rewrite <- flipeqflipl with (l' := l'); [ | assumption ].
   rewrite H in *. clear H l'.
   unfold flipeach. destruct l. simpl. reflexivity.
-  rewrite H0. unfold plus. rewrite Nat.mod_same. rewrite <- minus_n_O.
+  rewrite H0. unfold plus. rewrite Nat.Div0.mod_same.
+  assert (Hx := Nat.sub_0_r lim). rewrite Hx.
   reflexivity.
-  intro. discriminate.
 Qed.
 
 Lemma idxidemunfold :
@@ -112,40 +112,19 @@ Proof.
   destruct fe_invariant0 as [ idnz [ dset [ dle iniff ] ] ].
   destruct fe_invariant as [ _ [ dset' [ dle' iniff' ] ] ].
   rewrite Forall_forall in dle, dle'.
- 
-  assert (forall x, In x fe_divs <-> In x fe_divs0) as indind0.
-    intros; split; intro.
-      destruct (dle' _ H). rewrite <- iniff; auto.
-      destruct (dle _ H). rewrite <- iniff'; auto.
-  revert indind0 dset dset'. clear. intros.
-  revert dependent fe_divs.
-  induction fe_divs0; intros. simpl in *. destruct fe_divs; auto. exfalso. destruct (indind0 n). elim H. simpl. left. reflexivity.
-  assert (is_set eq_nat_dec fe_divs0 = true) as dsettail.
-    destruct (settail _ _ _ _ dset); auto.
-  simpl.
-  rewrite <- (IHfe_divs0 dsettail) with (fe_divs := remove eq_nat_dec a fe_divs); clear IHfe_divs0.
-  + rewrite <- lrm; auto. rewrite indind0. simpl. left. reflexivity.
-  + intros. split; [ intro xinra | intro xind0 ].
-    * destruct (eq_nat_dec x a) as [ xeqa | xnea ].
-        subst. elim (remove_In eq_nat_dec fe_divs a). assumption.
-        assert (a <> x) as anex. intro. subst. elim xnea. reflexivity.
-        assert (xind0iffxinrad0 := remove_corr_neq _ eq_nat_dec fe_divs0 _ _ anex).
-        assert (xindiffxinrad := remove_corr_neq _ eq_nat_dec fe_divs _ _ anex).
-        rewrite <- xindiffxinrad in xinra.
-        rewrite indind0 in xinra. simpl in xinra. destruct xinra as [ aeqx | xind0 ].
-          elim anex. assumption.
-          assumption.
-    * destruct (eq_nat_dec a x) as [ aeqx | anex ]. subst. exfalso. destruct (settail _ eq_nat_dec _ _ dset) as [ _ xnind0 ]. elim xnind0. assumption.
-        rewrite <- (remove_corr_neq _ eq_nat_dec fe_divs _ _ anex).
-        rewrite indind0. simpl. right. assumption.
-  + apply setrm. assumption.
+  assert (forall A B C D : Prop, (A -> B) -> (C -> B) -> (B -> (D <-> A)) -> (B -> (D <-> C)) -> (A <-> C)).
+  { clear. intros. firstorder. }
+  assert (forall x, In x fe_divs <-> In x fe_divs0).
+  { intros. rewrite (H _ _ _ _  (dle x) (dle' x) (iniff x) (iniff' x)). firstorder. }
+  revert H0 dset dset'; clear; intros.
+  assert (Hx := setleneq _ eq_nat_dec). apply Hx; auto.
 Qed.
 
-Lemma evenmapfliplelem :
+Lemma oddmapfliplelem :
   forall lim (l ll : list (fliplelem lim)),
     length l = length ll ->
     idxidem l ll ->
-    evenmap _ l = evenmap _ ll.
+    oddmap _ l = oddmap _ ll.
 Proof.
   induction l; destruct ll; auto; intros; simpl in *; try discriminate.
   destruct (idxidemunfold _ _ _ _ _ _ H0) as [ aeqf lidemll ].
@@ -156,12 +135,12 @@ Qed.
 
 Lemma flipwhileeqfliplwhile :
   forall n l cpf l',
-    l' = evenmap 0 l ->
+    l' = oddmap 0 l ->
     match l with
       | nil => True
       | h::_ => fe_idx _ h = 1
     end ->
-    flipwhile l' n = evenmap _ (proj1_sig (fliplwhile 0 l cpf n)).
+    flipwhile l' n = oddmap _ (proj1_sig (fliplwhile 0 l cpf n)).
 Proof.
   induction n.
 
@@ -185,14 +164,14 @@ Proof.
     rewrite (leacheq cpf' h1'). clear leacheq h1'.
     simpl.
     match goal with
-        |- evenmap _ (proj1_sig ?x) = evenmap _ (proj1_sig ?y) => remember x; remember y
+        |- oddmap _ (proj1_sig ?x) = oddmap _ (proj1_sig ?y) => remember x; remember y
     end. clear Heqs Heqs0.
     destruct s, s0. simpl.
     destruct a as [ xlen xidem ].
     destruct a0 as [ x0len x0idem ].
     destruct (fliplwhile 0 l _ _). simpl in *.
     destruct a as [ x1len x1idem ].
-    apply evenmapfliplelem.
+    apply oddmapfliplelem.
     + rewrite x0len. rewrite xlen. rewrite x1len. reflexivity.
     + assert (idxidem x l); [ apply (idxidemtrans _ _ _ x1 _ _); auto | ].
       apply (idxidemtrans _ _ _ l _ _); auto. rewrite xlen. rewrite x1len. reflexivity.
@@ -200,30 +179,26 @@ Proof.
 Qed.
 
 Lemma fliplem0divs :
-  forall x : fliplelem 0, fe_divs _ x = 0::nil.
+  forall x : fliplelem 0, fe_divs _ x = nil.
 Proof.
-  clear. intros. destruct x. simpl. destruct fe_invariant as [ xx [ yy [ dle xin ] ] ].
-  rewrite Forall_forall in dle.
-  destruct fe_divs. destruct (xin _ (le_n 0)). simpl in H. elim (H eq_refl).
-  simpl. destruct fe_divs.
-  - destruct n. reflexivity.
-    destruct (dle _ (hin _ (S n) nil)). omega.
-  - exfalso. destruct n.
-    + destruct (settail _ eq_nat_dec _ _ yy). simpl in H0. destruct n0. elim H0. left. reflexivity.
-      clear H H0.
-      assert (In (S n0) (0::S n0::fe_divs)). simpl. right. left. reflexivity.
-      destruct (dle _ H). omega.
-    + assert (In (S n) (S n :: n0::fe_divs)). simpl. left. reflexivity.
-      destruct (dle _ H). omega.
+  intros. destruct x. simpl. destruct fe_invariant as [ xx [ yy [ dle xin ] ] ].
+  rewrite Forall_forall in dle. destruct fe_divs; [ reflexivity | ].
+  assert (n=0).
+  {
+    destruct n; [ reflexivity | ].
+    assert (Hx := dle (S n)). simpl in Hx. assert (Hy := Hx (or_introl eq_refl)). lia.
+  }
+  subst.
+  assert (Hx := xin 0). destruct (Hx (le_n 0)). simpl in H0. elim xx. apply H0. auto.
 Qed.
 
-Lemma evenmapeq :
+Lemma oddmapeq :
   forall (l ll : list (fliplelem 0)),
     length l = length ll ->
-    evenmap _ l = evenmap _ ll.
+    oddmap _ l = oddmap _ ll.
 Proof.
   intros x x0 lxeqlx0.
-  unfold evenmap. revert x0 lxeqlx0. induction x; intros.
+  unfold oddmap. revert x0 lxeqlx0. induction x; intros.
   + simpl. destruct x0. simpl. reflexivity.
     simpl in lxeqlx0. discriminate.
   + simpl. destruct x0.  simpl in lxeqlx0. discriminate. rewrite (IHx x0).
@@ -233,11 +208,11 @@ Qed.
 
 Lemma prisoneq :
   forall cells,
-    prison cells = evenmap _ (proj1_sig (prisonl cells)).
+    prison cells = oddmap _ (proj1_sig (prisonl cells)).
 Proof.
 
   intros. unfold prison. unfold prisonl.
-  rewrite <- flipwhileeqfliplwhile with (l' := evenmap _ (proj1_sig (prisonlbase cells))).
+  rewrite <- flipwhileeqfliplwhile with (l' := oddmap _ (proj1_sig (prisonlbase cells))).
 
   - apply f_equal2; auto.
     induction cells. simpl. reflexivity.
@@ -250,12 +225,12 @@ Proof.
     destruct x0. simpl in *. discriminate.
     simpl. rewrite fliplem0divs. simpl. apply f_equal2; auto.
     simpl in *. inversion H. rename H1 into lxeqlx0. clear H f.
-    apply evenmapeq. assumption.
+    apply oddmapeq. assumption.
 
   - destruct cells. simpl. reflexivity.
     destruct (prisonlbase cells).
     destruct (prisonlbase (S cells)). unfold proj1_sig in *.
-    apply evenmapeq. rewrite rev_length. reflexivity.
+    apply oddmapeq. rewrite rev_length. reflexivity.
 
   - destruct (prisonlbase cells). unfold proj1_sig.
     destruct x. simpl. constructor.
@@ -300,17 +275,17 @@ Proof.
   simpl. intros.
   induction l using rev_ind; [ | clear IHl0 ].
   - simpl in *. inversion H1. inversion H0. rewrite H3 in *. rewrite H4 in *.
-    rewrite plus_comm. simpl. reflexivity.
+    rewrite Nat.add_comm. simpl. reflexivity.
   - rewrite rev_app_distr in *. simpl in *.
     inversion H0. inversion H1. rewrite H3, H4 in *. rewrite length_app_distr. simpl.
     destruct H as [ _ idxc' ].
     assert (IHl' := IHl (idxcifidxc' _ _ _ idxc')). clear IHl.
     destruct l.
     + simpl in *. destruct idxc' as [ xid _ ]. rewrite xid in *.
-      rewrite plus_comm. simpl. rewrite H4. reflexivity.
+      rewrite Nat.add_comm. simpl. rewrite H4. reflexivity.
     + simpl in *. destruct idxc' as [ fid lxcont ]. rewrite fid in *.
       rewrite <- (IHl' _ _ eq_refl eq_refl). clear IHl'.
-      rewrite length_app_distr. simpl. omega.
+      rewrite length_app_distr. simpl. lia.
 Qed.
 
 Lemma idxend_ge :
@@ -323,7 +298,7 @@ Proof.
   intros lim l idxc e eeq. destruct l as [ | f l ]. constructor.
   assert (optidx _ (hd_error (f::l)) = Some (fe_idx _ f)) as tmp. simpl. reflexivity.
   assert (fidlenfleqSe := idxstartend _ _ idxc _ _ tmp eeq). clear tmp.
-  simpl in fidlenfleqSe. rewrite plus_comm in fidlenfleqSe.
+  simpl in fidlenfleqSe. rewrite Nat.add_comm in fidlenfleqSe.
   simpl in fidlenfleqSe.
   inversion fidlenfleqSe as [ lenfeqe ]. clear fidlenfleqSe. clear eeq.
   rewrite Forall_forall.
@@ -334,15 +309,15 @@ Proof.
   assert (length l + fe_idx _ a = e) as lenlaeqe.
     revert idxc alfe. clear. intros.
     simpl in *. destruct idxc as [ _ [ af _ ] ]. rewrite af.
-    rewrite <- alfe. omega.
+    rewrite <- alfe. lia.
   assert (IHl' := IHl _ _ alcont lenlaeqe x). clear IHl.
   assert (f = x \/ In x (a::l)) as xin'. revert xin. clear. intros. simpl in *. assumption.
   destruct xin' as [ feqx | xinal ].
-  - subst. simpl in *. clear.  omega.
+  - subst. simpl in *. clear.  lia.
   - assert (xleSll := IHl' xinal). clear xinal IHl'.
     assert (fe_idx _ a = S (fe_idx _ f)) as aidSfid. simpl in idxc. apply idxc.
     revert xleSll aidSfid. clear. intros. rewrite aidSfid in *. clear aidSfid.
-    simpl. omega.
+    simpl. lia.
 Qed.
 
 Lemma idxidem_app_distr :
@@ -382,7 +357,7 @@ Proof.
     rewrite Hx. rewrite rev_app_distr. simpl. reflexivity.
     revert reslen baselen. clear. intros.
     simpl in *. repeat rewrite length_app_distr in reslen. simpl in *.
-    repeat rewrite (plus_comm _ 1) in reslen. simpl in reslen. inversion reslen. reflexivity.
+    repeat rewrite (Nat.add_comm _ 1) in reslen. simpl in reslen. inversion reslen. reflexivity.
   assert (Hz := Hy lastidreseqbase). clear Hy lastidreseqbase.
   rewrite Forall_forall in Hz.
   assert (Hx := Hz _ xin). clear Hz.
@@ -401,7 +376,7 @@ Proof.
   rewrite Forall_forall in *.
   intros.
   assert (Hy := Hx _ H).
-  assert (S n = S n + 0). omega.
+  assert (S n = S n + 0). lia.
   assert (Hz := alldivs _ x).
   rewrite H0 in Hy. assert (Ha := Hz Hy).
   destruct Ha. destruct a as [ x1def [ x1set diviff ] ].

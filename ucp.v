@@ -13,7 +13,7 @@ Lemma UIBP :
   forall A (dec : forall a b : A, {a=b}+{a<>b}) x l (p1 p2 : inb dec x l = true),
     p1 = p2.
 Proof.
-  intros. apply Eqdep_dec.UIP_dec. clear. intros. destruct x, y; firstorder.
+  intros. apply Eqdep_dec.UIP_dec. clear. intros. destruct x, y; firstorder; right; intro; discriminate.
 Qed.
 
 Lemma inbeqIn :
