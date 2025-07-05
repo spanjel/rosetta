@@ -2,12 +2,10 @@ Require Import math.
 
 Require Import List.
 
-Require Import NPeano.
 Require Import Arith.
 Require Import Lia.
 
 Require Import list_facts.
-
 
 Definition hdx A (l : {l : list A | l <> nil}) :=
   match proj1_sig l as xx return proj1_sig l = xx -> A with
@@ -20,8 +18,8 @@ Record fliplelem (fe_lim : nat) :=
     fe_idx : nat;
     fe_divs : list nat;
     fe_invariant : fe_idx <> 0 /\
-                   is_set eq_nat_dec fe_divs = true /\
-                   Forall (fun x => x <= fe_lim) fe_divs /\
+                   NoDup fe_divs /\
+                   Forall (fun x => (x = 0 \/ fe_idx mod x = 0) /\ x <= fe_lim) fe_divs /\
                    forall x,
                      x <= fe_lim ->
                      (fe_idx mod x = 0 <-> In x fe_divs)
@@ -31,7 +29,7 @@ Definition alldivs
            lim
            (fe : fliplelem lim)
            (idxpf : (fe_idx _ fe) <= lim) :
-  {l | fe_divs _ fe = l /\ is_set eq_nat_dec l = true /\ forall x, (fe_idx _ fe) mod x = 0 <-> In x l}.
+  {l | fe_divs _ fe = l /\ NoDup l /\ forall x, (fe_idx _ fe) mod x = 0 <-> In x l}.
 Proof.
   destruct fe. simpl in *.
   destruct fe_invariant0 as [ idxnz [ dset [ alldiv divin ] ] ].
@@ -44,7 +42,9 @@ Proof.
   - assert (Hy := Hx x). assert (fe_idx0 < x). lia.
     elim (Hy H1). assumption.
   - rewrite Forall_forall in alldiv.
-    assert (Hy := alldiv _ H0). lia.
+    destruct (alldiv _ H0).
+    exfalso.
+    lia.
 Defined.
 
 Fixpoint idxcont' {lim} l pidx :=
@@ -61,8 +61,6 @@ Definition idxcont {lim} l :=
 
 Definition idxidem {lim lim'} l ll := Forall (fun e => fe_idx lim (fst e) = fe_idx lim' (snd e)) (zipmin l ll).
 
-Section NatImported.
-Import Nat.
 Lemma Slimdivs :
   forall k n m,
     m = k + (n + m) mod S m ->
@@ -78,14 +76,14 @@ Proof.
   destruct k.
 
   - unfold plus at 1 in kpf.
-    assert (Hx := Div0.add_mod n m (S m)).
+    assert (Hx := Nat.Div0.add_mod n m (S m)).
     rewrite Hx in kpf.
     rewrite meqmmSm in kpf at 1.
     rewrite <- meqmmSm in kpf at 2.
-    assert (Hy := apbmodmeqb_amodmz _ _ _ (eq_flip _ _ _ kpf)).
-    rewrite Div0.mod_mod in Hy. assumption.
+    assert (Hy := apbmodmeqb_amodmz _ _ _ Smnz (eq_flip _ _ _ kpf)).
+    rewrite Nat.Div0.mod_mod in Hy. assumption.
 
-  - intro nmSm. rewrite Div0.add_mod in kpf.
+  - intro nmSm. rewrite Nat.Div0.add_mod in kpf.
     rewrite nmSm in kpf.
     unfold plus at 2 in kpf.
     repeat rewrite <- meqmmSm in kpf.
@@ -104,6 +102,8 @@ Proof.
   apply v.
 Defined.
 
+Lemma nltSn : forall n, n < S n. intros. lia. Qed.
+
 Definition fliplkzh
            lim
            (h : fliplelem lim)
@@ -118,33 +118,40 @@ Proof.
   unfold plus at 2 in kpf.
   cbv zeta in kpf.
   assert (Hx := eq_flip _ _ _ kpf).
-  assert (lim = lim mod S lim) as modsmall. clear. rewrite Nat.mod_small. reflexivity. apply Nat.lt_succ_diag_r.
+  assert (lim = lim mod S lim) as modsmall. clear. rewrite Nat.mod_small. reflexivity. apply nltSn.
   rewrite modsmall in Hx.
-  assert (Hy := apbmodmeqb_amodmz _ _ _ Hx). clear kpf Hx modsmall.
+  assert (S lim <> 0) as Slimnz; [ lia | ].
+  assert (Hy := apbmodmeqb_amodmz _ _ _ Slimnz Hx). clear kpf Hx modsmall.
   destruct h. unfold fe_idx in *. unfold fe_divs in *.
   destruct fe_invariant0 as [ idxnz [ dset [ dNle letdiffin ] ] ].
   rewrite Forall_forall in dNle.
   set (res := Build_fliplelem (S lim) fe_idx0 (S lim::fe_divs0)).
   
   assert (fe_idx0 <> 0 /\
-          is_set eq_nat_dec (S lim :: fe_divs0) = true /\
-          Forall (fun x : nat => x <= S lim)
+          NoDup (S lim :: fe_divs0) /\
+          Forall (fun x : nat => (x = 0 \/ fe_idx0 mod x = 0) /\ x <= S lim)
                  (S lim :: fe_divs0) /\
           (forall x : nat,
              x <= S lim -> (fe_idx0 mod x = 0 <-> In x (S lim :: fe_divs0)))).
-
-  {
+         
   split; [ assumption | split; [ | split ] ].
 
-  - simpl. rewrite dset. clear dset letdiffin.
-    destruct (inb _ _ _) eqn:inbeq; [ exfalso | reflexivity ].
-    rewrite inbeqIn in inbeq.
-    assert (Hx := dNle _ inbeq). lia.
+  - simpl.
+    assert (~In (S lim) fe_divs0).
+    {
+      intro inbeq.
+      destruct (dNle _ inbeq) as [ _ modsm ].
+      lia.
+    }
+    constructor; assumption.
 
   - rewrite Forall_forall. intros x indiv.
-    simpl in indiv. destruct indiv as [ Slimeqx | indiv ]; [ rewrite <- Slimeqx in * | ].
+    simpl in indiv. destruct indiv as [ Slimeqx | indiv ]; [ rewrite <- Slimeqx in * | ]; split.
+    + right; assumption.
     + constructor.
-    + assert (Hx := dNle _ indiv). lia.
+    + rewrite letdiffin. right; assumption.
+      apply dNle. assumption.
+    + destruct (dNle _ indiv) as [ xdiv xle ]. lia.
 
   - intros x xleSlim. split; [ intro xdiv | intro xin ].
     + simpl. destruct (eq_nat_dec x (S lim)) as [ xeq | xne ].
@@ -156,9 +163,9 @@ Proof.
           rewrite xeq. assumption.
         rewrite letdiffin. assumption.
         lia.
-  }
 
-  - exists (res H). unfold res. auto.
+  - assert (fe_idx _ (res H) = fe_idx0). unfold res. simpl. reflexivity.
+    exists (res H). unfold res. split; reflexivity.
 Defined.
 
 Definition fliplknzh
@@ -178,25 +185,29 @@ Proof.
   rewrite Forall_forall in ddNxle.
   set (res := Build_fliplelem (S lim) fe_idx0 fe_divs0).
   assert (fe_idx0 <> 0 /\
-          is_set eq_nat_dec fe_divs0 = true /\
-          Forall (fun x : nat => x <= S lim) fe_divs0 /\
+          NoDup fe_divs0 /\
+          Forall (fun x : nat => (x = 0 \/ fe_idx0 mod x = 0) /\ x <= S lim) fe_divs0 /\
           (forall x : nat, x <= S lim -> (fe_idx0 mod x = 0 <-> In x fe_divs0))) as respf; [ clear res | ].
-  split; [ | split; [ | split ] ]; auto.
+  {
+    split; [ | split; [ | split ] ]; auto.
 
-  - rewrite Forall_forall. intros x xin.
-    assert (xle := ddNxle _ xin). lia.
+    - rewrite Forall_forall. intros x xin.
+      destruct (ddNxle _ xin) as [ xdiv xle ].
+      destruct xdiv as [ xz | xdiv ].
+      + split; [ | lia ]. left; assumption.
+      + split; [ | lia ]. right; assumption.
+    - intros x xleSlim.
+      destruct (eq_nat_dec x (S lim)) as [ xeq | xne ]; [ | apply letdiffin; lia ].
+      rewrite xeq in *. clear xeq x.
+      clear xleSlim.
+      split; [ intro Slimdiv | intro Slimin ]; exfalso.
+      + assert (Hx := Slimdivs _ _ _ kpf). cbv iota beta in Hx.
+        elim Hx. assumption.
+      + destruct (ddNxle _ Slimin) as [ _ impo ]. revert impo. clear. intros. lia.
+  }
 
-  - intros x xleSlim.
-    destruct (eq_nat_dec x (S lim)) as [ xeq | xne ]; [ | apply letdiffin; lia ].
-    rewrite xeq in *. clear xeq x.
-    clear xleSlim.
-    split; [ intro Slimdiv | intro Slimin ]; exfalso.
-    + assert (Hx := Slimdivs _ _ _ kpf). cbv iota beta in Hx.
-      elim Hx. assumption.
-    + assert (Hx := ddNxle _ Slimin). lia.
-
-  - exists (res respf).
-    unfold res. simpl. split; reflexivity.
+  exists (res respf).
+  unfold res. simpl. split; reflexivity.
 Defined.
 
 Definition kremconv
@@ -271,14 +282,14 @@ Proof.
   destruct t. constructor.
   rewrite leq in *. clear leq l.
   simpl in idxc. destruct idxc as [ _ [ sfeqh idxc ] ].
-  rewrite sfeqh in *. clear f sfeqh idxc.
+  rewrite sfeqh in *. clear f sfeqh idxc t.
   cbv zeta.
   rewrite kz in *. clear k kz.
   unfold plus at 1 in kpf.
   unfold plus. fold plus.
   assert (forall a, S a = 1 + a). clear. intros. lia.
   rewrite H. clear H.
-  rewrite Div0.add_mod. rewrite <- kpf.
+  rewrite Nat.Div0.add_mod. rewrite <- kpf.
   clear h kpf.
   destruct lim. simpl. reflexivity.
   destruct lim. simpl. reflexivity.
@@ -286,7 +297,7 @@ Proof.
   rewrite H. clear H.
   assert (1 + (S (S lim)) = S (S (S lim))). simpl. reflexivity.
   rewrite H. clear H.
-  rewrite Div0.mod_same.
+  rewrite Nat.Div0.mod_same.
   rewrite Nat.add_comm. simpl. reflexivity.
 Defined.
 
@@ -309,7 +320,7 @@ Proof.
   destruct t. constructor.
   rewrite leq in *. clear l leq.
   simpl in idxc. destruct idxc as [ _ [ feqh _ ] ].
-  rewrite feqh in *. clear feqh f.
+  rewrite feqh in *. clear feqh t f.
   assert (Hx := Slimdivs _ _ _ kpf).
   rewrite knz in *. clear k knz.
   cbv zeta.
@@ -319,18 +330,17 @@ Proof.
   - intro. discriminate.
   - intro. clear kpf k'.
     assert ((fe_idx lim h + lim) mod S lim = lim). injection H. intro. assumption. clear H.
-    rewrite Div0.add_mod in H0.
+    rewrite Nat.Div0.add_mod in H0.
     assert (lim = lim mod S lim). clear. rewrite Nat.mod_small. reflexivity. lia.
     rewrite <- H in H0.
     assert (forall A (a b c : A), a = b -> b = c -> a = c). clear. intros. subst. reflexivity.    
     assert (Hy := H1 _ _ _ _ H0 H). clear H1 H H0.
-    assert (Hz := apbmodmeqb_amodmz _ _ _ Hy).
-    rewrite Div0.mod_mod in Hz. elim Hx. assumption.
+    assert (S lim <> 0) as Slimnz; [ lia | ].
+    assert (Hz := apbmodmeqb_amodmz _ _ _ Slimnz Hy).
+    rewrite Nat.Div0.mod_mod in Hz. elim Hx. assumption.
 Defined.
 
 Definition dropsnd A P Q (v : {x : A | P x /\ Q x}) : {x | P x} := exist _ (proj1_sig v) (proj1 (proj2_sig v)).
-
-End NatImported.
 
 Fixpoint flipl
          lim
@@ -683,7 +693,7 @@ Proof.
   elim n. clear n. clear llconf lallconf.
 
   destruct (dec z (m a0)) as [ _ | _ ]; [ | contradiction ].
-  revert dependent a. revert dependent a0. revert dependent l. clear.
+  generalize dependent a. generalize dependent a0. generalize dependent l. clear.
 
   induction l.
   - simpl in *. unfold hdx. simpl in *. intros. destruct (dec _ _); auto. contradiction.
@@ -708,7 +718,7 @@ Proof.
     + simpl. destruct H. destruct (Sdec n _).
       * assumption.
       * elim n0. rewrite H. reflexivity.
-    + intro. discriminate H0.
+    + intro. discriminate H.
   - simpl. rewrite IHl.
     + simpl in H. destruct (Sdec n _).
       * split. rewrite e. reflexivity.
@@ -726,7 +736,7 @@ Definition idxcontt_app
            (leq : l = i ++ e) :
   idxcont i /\ idxcont e.
 Proof.
-  revert dependent lim. induction i using rev_ind. simpl. intros. subst. split; auto.
+  generalize dependent lim. induction i using rev_ind. simpl. intros. subst. split; auto.
   intros. rewrite leq in *. clear l leq.
   assert (Hx := IHi (x::e) _ lpf). clear IHi. rewrite <- app_assoc in Hx. simpl in Hx.
   destruct (Hx eq_refl) as [ icont [ _ econt' ] ]; clear Hx.
@@ -746,7 +756,6 @@ Proof.
       destruct econt' as [ fideqSxid econt' ].
       split; [ reflexivity | ].
       assumption.
-
   Unshelve.
   intro contra; discriminate contra.
   intro contra; discriminate contra.
@@ -839,7 +848,7 @@ Definition prisonlbase
     idxcont (rev l) }.
 
 Proof.
-  unshelve refine ((fix IHidx' len0 :=
+  refine ((fix IHidx' len0 :=
              match len0
                    as lenx
                    return  len0 = lenx ->
@@ -855,13 +864,7 @@ Proof.
                              let h := Build_fliplelem 0 len0 nil pf in
                              exist _ (cons h (proj1_sig rest)) _
              end eq_refl) len).
-  - subst. simpl.
-    split; [ intro contra; discriminate contra | ].
-    split; [ solve [ auto ] | ].
-    split.
-    + rewrite Forall_forall. intros x xle0. destruct xle0; try lia.
-    + intros. split; [ | intro; contradiction ].
-      intro. assert (x = 0); [ lia | ]. subst. simpl in H0. discriminate.
+  Unshelve.
   - subst. simpl. split; [ reflexivity | split; [ | constructor ] ].
     intros. discriminate H.
   - split; [ | split ]; destruct rest as [ r' r'pf ]; simpl; clear IHidx'.
@@ -879,7 +882,7 @@ Proof.
     + clear len.
       remember pf. clear pf Heqa. rename a into pf.
       destruct r'pf as [ r'len [ r's1 r'c ] ]. rewrite <- r'len in lennz. clear len' r'len.
-      rewrite <- rev_length in lennz. remember (rev r') as l. clear r' Heql.
+      rewrite <- length_rev in lennz. remember (rev r') as l. clear r' Heql.
       rename len0 into len.
       unfold idxcont. unfold idxcont in r'c. destruct l; [ simpl; auto | ]. simpl; simpl in r'c. split; [ reflexivity | ]. destruct r'c as [ _ r'c ].
       induction l using rev_ind; [ simpl in *; rewrite r's1; auto | ].
@@ -893,7 +896,15 @@ Proof.
         simpl. rewrite hdxspeccase. reflexivity.
       * simpl. unfold Sdec. rewrite lennz. rewrite xidx. rewrite r's1; [ | auto ]. clear.
         destruct eq_nat_dec; [ constructor | ].
-        elim n. simpl. rewrite app_length. simpl. lia.
+        elim n. simpl. rewrite length_app. simpl. lia.
+  - subst. simpl.
+    split; [ intro contra; discriminate contra | ].
+    split; [ constructor | ].
+    split.
+    + rewrite Forall_forall. intros. simpl in H. contradiction.
+    + intros. split.
+      * intros. destruct x; [ | lia ]. rewrite Nat.mod_0_r in H0. discriminate H0.
+      * intros. contradiction.
 Defined.
 
 Definition prisonl cells := let base := prisonlbase cells in

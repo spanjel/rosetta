@@ -1,8 +1,7 @@
 Require Import Arith.
 Require Import List.
-Require Import Lia.
-
 Require Export logic.
+Require Import Lia.
 
 Lemma Olen : forall n, 0 <= n. intro. induction n. constructor. constructor. assumption. Qed.
 
@@ -33,18 +32,18 @@ Proof.
 Qed.
 
 Definition confprops'' l P nn := 
-  is_set eq_nat_dec l = true /\
+  NoDup l /\
   Forall (fun x => x < nn) l /\
   Forall P l /\
   (forall n, n < nn -> P n -> In n l).
 
-Definition confprops' l P := 
-  is_set eq_nat_dec l = true /\
+Definition confprops' (l : list nat) P := 
+  NoDup l /\
   Forall P l /\
   (forall n, P n -> In n l).
 
-Definition confprops l P := 
-  is_set eq_nat_dec l = true /\
+Definition confprops (l : list nat) P := 
+  NoDup l /\
   (forall n, P n <-> In n l).
 
 Lemma areconf :

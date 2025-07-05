@@ -2,13 +2,12 @@ Require Import Zdiv.
 Require Import List.
 Require Import Arith.
 Require Import Zquot.
-Require Import NPeano.
 Require Import PeanoNat.
 Import Nat.
-
 Require Export ucp.
 Require Export logic.
 Require Export list_facts.
+Require Import nodup_in_pi.
 
 Inductive evenl A :=
 | Enil : evenl A
@@ -43,13 +42,13 @@ Proof.
 Qed.
 
 Lemma prodsgn : forall n m, (0 < n -> 0 < n * m -> 0 < m)%Z.
-Proof.
-  destruct n, m; auto; try lia.
+Proof with lia.
+  destruct n, m...
 Qed.
 
 Lemma ltadd : forall p q, (p <= p + q <-> 0 <= q)%Z.
-Proof.
-  intros. lia.
+Proof with lia.
+  intros...
 Qed.
 
 Lemma prodSn : forall n m, (0 < n -> 0 < m -> n <= n * m)%Z.
@@ -88,7 +87,7 @@ Proof.
   assert (divexact := mdivthenndivexact mdiv). clear mdivthenndivexact.
   assert (smallthen0 := Nat.div_small n m).
   destruct (lt_dec n m) as [ small | notsmall ].
-  rewrite (smallthen0 small) in divexact. elim nnz. rewrite divexact. rewrite Nat.mul_comm. simpl. reflexivity.
+  rewrite (smallthen0 small) in divexact. elim nnz. rewrite divexact. rewrite mul_comm. simpl. reflexivity.
   revert notsmall. clear. intros. lia.
 Qed.
 
@@ -125,16 +124,17 @@ Lemma conformants'
 
 Proof.
   unfold confprops''. induction nn.
-  - simpl. split; [ | split; [ | split ] ]; auto. intros. lia.
+  - simpl. split; [ | split; [ | split ] ]; [ constructor | constructor | constructor | ]. intros. lia.
   - destruct IHnn as [ set [ ltx [ conf meat ] ] ]. split; [ | split; [ | split ] ]; simpl; remember (conformants''x dec nn) as l'; clear Heql'.
     + destruct (dec nn); [ | assumption ].
-      simpl. rewrite set. destruct (inb eq_nat_dec nn _) eqn:inbeq; [ | reflexivity ].
-      exfalso. revert inbeq ltx dec. clear. intros.
-      apply forallneqthennotin with (A := nat) (dec:=eq_nat_dec) (l:=l') (a:=nn).
-      * apply PthenQthenFAPthenFAQ with (P := fun x => x < nn).
-        clear. intros. lia.
-        assumption.
-      * assumption.
+      assert (~In nn l').
+      {
+        intro. clear meat conf p.
+        apply (forallneqthennotin _ eq_nat_dec nn l').
+        - refine (PthenQthenFAPthenFAQ _ _ _ _ _ ltx). intros. lia.
+        - rewrite inbeqIn. assumption.
+          }
+      constructor; assumption.
     + destruct (dec nn);
       [ constructor; [ lia | ] | ];
         apply PthenQthenFAPthenFAQ with (P:=fun x => x < nn);
@@ -180,7 +180,7 @@ Lemma div_modnz : forall n k, n <> 0 -> k <> 0 -> n mod k = 0 -> n / k <> 0.
 Proof.
   intros n k nnz knz kdivn.
   rewrite <- (Div0.div_exact n k) in kdivn.
-  destruct (n / k). rewrite Nat.mul_comm in kdivn. simpl in kdivn. subst. assumption.
+  destruct (n / k). rewrite mul_comm in kdivn. simpl in kdivn. subst. assumption.
   intro. discriminate.
 Qed.
 
@@ -192,7 +192,7 @@ Proof.
   rewrite ddiv at 1.
   rewrite Nat.div_mul. reflexivity.
   apply div_modnz; [ assumption | assumption | ].
-  rewrite <- Nat.Div0.div_exact; assumption.
+  rewrite <- Div0.div_exact; assumption.
 Qed.
 
 Lemma deneqden :
@@ -213,8 +213,8 @@ Proof.
   rewrite dm2 in dm1 at 1. clear dm2.
   rewrite deq in dm1. clear deq.
   rewrite d1d in dm1. rewrite d2d in dm1. clear d1d d2d.
-  rewrite Nat.add_comm in dm1. simpl in dm1. rewrite Nat.add_comm in dm1. simpl in dm1.
-  rewrite Nat.mul_comm in dm1. rewrite (Nat.mul_comm d1) in dm1.
+  rewrite add_comm in dm1. simpl in dm1. rewrite add_comm in dm1. simpl in dm1.
+  rewrite mul_comm in dm1. rewrite (mul_comm d1) in dm1.
   rewrite Nat.mul_cancel_l in dm1.
   rewrite dm1. reflexivity.
   assumption.
@@ -223,14 +223,15 @@ Qed.
 Lemma divisorpair : forall n k, n mod k = 0 -> n mod (n / k) = 0.
 Proof.
   intros n k kdiv.
-  destruct (eq_nat_dec n 0) as [ nz | nnz ]. subst.
-    destruct k. simpl. reflexivity. simpl. reflexivity.
-  destruct (eq_nat_dec k 0) as [ kz | knz ]. subst. simpl in *. assumption.
-  assert (ndivkexact := Div0.div_exact n k).
-  assert (ndknz := div_modnz n k nnz knz kdiv).
-  rewrite <- Div0.div_exact. rewrite Nat.mul_comm.
-  rewrite <- deqndndd; try assumption.
-  rewrite ndivkexact; assumption.
+  destruct (eq_nat_dec n 0) as [ nz | nnz ].
+  - subst. destruct k; reflexivity.
+  - destruct (eq_nat_dec k 0) as [ kz | knz ].
+    + subst. rewrite mod_0_r in kdiv. subst. simpl. reflexivity.
+    + assert (ndivkexact := Div0.div_exact n k).
+      assert (ndknz := div_modnz n k nnz knz kdiv).
+      rewrite <- Div0.div_exact. rewrite mul_comm.
+      rewrite <- deqndndd; try assumption.
+      rewrite ndivkexact; assumption.
 Qed.
 
 Lemma nfsq : forall n k, k <> 0 -> n mod k = 0 -> k = n / k -> n = k * k.
@@ -276,11 +277,11 @@ Qed.
 Lemma divy : forall n k l, n = k * l -> n mod k = 0 /\ n mod l = 0.
 Proof.
   intros.
-  destruct (eq_nat_dec k 0) as [ kz | knz ]. subst. simpl. split; auto. destruct l; auto. simpl. rewrite Nat.sub_diag. reflexivity.
-  destruct (eq_nat_dec l 0) as [ lz | lnz ]. subst. simpl. split; auto. rewrite Nat.mul_comm. simpl. destruct k; auto. simpl. rewrite Nat.sub_diag. reflexivity.
+  destruct (eq_nat_dec k 0) as [ kz | knz ]. subst. simpl. split; auto. destruct l; auto. simpl. rewrite sub_diag. reflexivity.
+  destruct (eq_nat_dec l 0) as [ lz | lnz ]. subst. simpl. split; auto. rewrite mul_comm. simpl. destruct k; auto. simpl. rewrite sub_diag. reflexivity.
   assert (Hk := Div0.mod_mul l k).
   assert (Hl := Div0.mod_mul k l).
-  rewrite Nat.mul_comm in Hk.
+  rewrite mul_comm in Hk.
   rewrite <- H in *. split; assumption.
 Qed.
 
@@ -292,12 +293,12 @@ Lemma divdiv :
 Proof.
   intros n k m knz nnz mdivk kdivn.
   destruct (eq_nat_dec m 0) as [ mz | mnz ].
-    subst. simpl in *. subst. simpl in *. assumption.
-  rewrite <- Div0.div_exact in mdivk.
-  rewrite <- Div0.div_exact in kdivn.
-  rewrite mdivk in kdivn.
-  rewrite kdivn. rewrite <- Nat.mul_assoc. rewrite Nat.mul_comm.
-  apply Div0.mod_mul.
+  - subst. simpl. rewrite mod_0_r in mdivk. subst. rewrite mod_0_r in kdivn. assumption.
+  - rewrite <- Div0.div_exact in mdivk.
+    rewrite <- Div0.div_exact in kdivn.
+    rewrite mdivk in kdivn.
+    rewrite kdivn. rewrite <- mul_assoc. rewrite mul_comm.
+    apply Div0.mod_mul.
 Qed.
 
 Lemma divsdivs :
@@ -323,8 +324,8 @@ Lemma divlcontainsn :
 Proof.
   intros.
   destruct (divisorspf nnz) as [ _ iff ].
-  unfold l. split; rewrite <- iff; [ solve [ auto ] | ].
-  apply Div0.mod_same.
+  unfold l.
+  split; rewrite <- iff; [ apply mod_1_r | apply Div0.mod_same ].
 Qed.
 
 Lemma sqz :
@@ -375,9 +376,9 @@ Proof.
   assert (sqrt n <= n / sqrt n <= 2 + sqrt n). split. 
     assumption. assert (Hxx := Div0.div_le_mono n (sqrt n + sqrt n * S (sqrt n)) (sqrt n) H3).
     assert (sqrt n + sqrt n * S (sqrt n) = sqrt n * (2 + (sqrt n))).
-      assert (2 + sqrt n = 1 + S (sqrt n)). lia. rewrite H2. rewrite Nat.mul_add_distr_l.
-      rewrite (Nat.mul_comm _ 1). simpl. rewrite (Nat.add_comm _ 0). simpl. reflexivity.
-      rewrite H2 in Hxx. rewrite Nat.mul_comm in Hxx. rewrite Nat.div_mul in Hxx; auto.
+      assert (2 + sqrt n = 1 + S (sqrt n)). lia. rewrite H2. rewrite mul_add_distr_l.
+      rewrite (mul_comm _ 1). simpl. rewrite (add_comm _ 0). simpl. reflexivity.
+      rewrite H2 in Hxx. rewrite mul_comm in Hxx. rewrite Nat.div_mul in Hxx; auto.
   assumption.
 Qed.
 
@@ -438,63 +439,53 @@ Proof.
   assumption.
 Qed.
 
-Definition divisors_nz {n} (nnz : n <> 0) := remove eq_nat_dec 0 (divisors_raw nnz).
-Lemma znd :
-  forall n nnz,
-    @divisors_nz n nnz = divisors_raw nnz.
-Proof.
-  induction n; [ solve [ intros; elim nnz; auto ] | ].
-  intros. unfold divisors_nz. unfold divisors_raw.
-  remember (conformants''x _ _).
-  assert (~In 0 l).
-  {
-    subst. intro.
-    assert (Hx := @conformants'). unfold confprops'' in Hx.
-    destruct (Hx _ (divides_dec (S n)) (S (S n))) as [ set [ conf' [ conf'' inpf ] ] ].
-    rewrite Forall_forall in *.
-    clear Hx.
-    assert (conf'' := conf'' _ H). simpl in conf''. discriminate.
-  }
-  intros. apply List.notin_remove. assumption.          
-Qed.
-
-Definition divisors_nsr {n} (nnz : n <> 0) := let nzd := divisors_nz nnz in
+Definition divisors_nsr {n} (nnz : n <> 0) := let nzd := divisors_raw nnz in
                                               if eq_nat_dec n (sqrt n * sqrt n)
                                               then remove eq_nat_dec (sqrt n) nzd
                                               else nzd.
 
-Lemma divisors_nz_nz :
+Lemma divisors_raw_nz :
   forall n (nnz : n <> 0) a,
-    In a (divisors_nz nnz) -> a <> 0.
+    In a (divisors_raw nnz) -> a <> 0.
 Proof.
-  intros. intro. unfold divisors_nz in H.
-  rewrite H0 in H.
-  ainral.
+  intros. intro. subst.
+  assert (Hx := @divisorspf _ nnz).
+  unfold confprops in Hx. destruct Hx.
+  assert (H1 := H1 0).
+  rewrite <- H1 in H. clear H1 H0.
+  destruct n; [ elim nnz; reflexivity | ].
+  rewrite Nat.mod_0_r in H. discriminate.
 Qed.
 
 Lemma divisors_nsr_nz :
   forall n (nnz : n <> 0) a,
     In a (divisors_nsr nnz) -> a <> 0.
 Proof.
-  intros. intro. unfold divisors_nsr in H. unfold divisors_nz in H.
-  rewrite H0 in H.
-  destruct (eq_nat_dec n _); [ | ainral ].
-  rewrite remove_assoc in H. ainral.
+  intros. intro. unfold divisors_nsr in H.
+  destruct (eq_nat_dec n _).
+  - subst. 
+    assert (Hx := in_remove eq_nat_dec _ _ _ H).
+    destruct Hx as [ Hx _ ].
+    assert (Hy := divisors_raw_nz).
+    assert (Hy := Hy _ _ _ Hx).
+    elim Hy; reflexivity.
+  - subst. 
+    assert (Hy := divisors_raw_nz).
+    assert (Hy := Hy _ _ _ H).
+    elim Hy; reflexivity.
 Qed.
 
-Lemma divisors_nz_ainndain :
+Lemma divisors_raw_ainndain :
   forall n (nnz : n <> 0) a,
-    In a (divisors_nz nnz) -> In (n / a) (divisors_nz nnz).
+    In a (divisors_raw nnz) -> In (n / a) (divisors_raw nnz).
 Proof.
   intros n nnz0 a pf.
   destruct (divisorspf nnz0) as [ lzset indiv ].
-  assert (anz := divisors_nz_nz _ nnz0 _ pf).
-  unfold divisors_nz in *.
-  ainrbl.
+  assert (anz := divisors_raw_nz _ nnz0 _ pf).
   generalize pf; intro. rewrite <- indiv in pf0.
   assert (Hx := divisorpair _ _ pf0).
   assert (Hy := div_modnz _ _ nnz0 anz pf0).
-  rewrite indiv in Hx. rewrite <- remove_corr_neq; [ | neqneq ].
+  rewrite indiv in Hx.
   assumption.
 Qed.
 
@@ -505,16 +496,14 @@ Proof.
   intros n nnz0 a pf.
   destruct (divisorspf nnz0) as [ lzset indiv ].
   assert (anz := divisors_nsr_nz _ nnz0 _ pf).
-  unfold divisors_nsr in *. unfold divisors_nz in *.
+  unfold divisors_nsr in *.
   destruct (eq_nat_dec n (sqrt n * sqrt n)) as [ nsq' | nnsq' ].
-  - rewrite remove_assoc in pf. ainrbl.
-    destruct (eq_nat_dec (sqrt n) a) as [ xeqa | xnea ].
+  - destruct (eq_nat_dec (sqrt n) a) as [ xeqa | xnea ].
     + rewrite xeqa in *. ainral.
     + assert (anex := neqflip _ _ _ xnea). ainrbl.
       generalize pf; intro. rewrite <- indiv in pf0.
       assert (ndad := divisorpair _ _ pf0). rewrite indiv in ndad.
       assert (ndanz := div_modnz _ _ nnz0 anz pf0).
-      rewrite remove_assoc. rewrite <- remove_corr_neq; [ | neqneq ].
       destruct (eq_nat_dec (sqrt n) (n / a)); [ | rewrite <- remove_corr_neq; assumption ].
       rewrite (fsqn _ _ nsq') in e.
       rewrite (deneqden _ _ (sqrt n) nnz0 anz pf0) in xnea.
@@ -522,19 +511,18 @@ Proof.
       * intro srz. rewrite srz in nsq'. simpl in nsq'. elim nnz0. assumption.
       * apply fsqd. assumption.
       * rewrite e. reflexivity.
-  - apply divisors_nz_ainndain. assumption.
+  - apply divisors_raw_ainndain. assumption.
 Qed.
 
 Lemma divisors_nz_ainadiv :
   forall n (nnz : n <> 0) a,
-    In a (divisors_nz nnz) -> n mod a = 0.
+    In a (divisors_raw nnz) -> n mod a = 0.
 Proof.
     intros n nnz a ainl.
-    assert (anz := divisors_nz_nz _ nnz _ ainl).
+    assert (anz := divisors_raw_nz _ nnz _ ainl).
     destruct (divisorspf nnz) as [ lzset indiv ].
-    unfold divisors_nz in ainl.
     rewrite indiv.
-    ainrbl. assumption.
+    assumption.
 Qed.
 
 Lemma divisors_nsr_ainadiv :
@@ -544,22 +532,22 @@ Proof.
     intros n nnz a ainl.
     assert (anz := divisors_nsr_nz _ nnz _ ainl).
     destruct (divisorspf nnz) as [ lzset indiv ].
-    unfold divisors_nsr in ainl. unfold divisors_nz in ainl.
+    unfold divisors_nsr in ainl.
     rewrite indiv.
     destruct (eq_nat_dec n (sqrt n * sqrt n)) as [ nsq | nnsq ].
     - destruct (eq_nat_dec a (sqrt n)) as [ asr | nasr ].
       + rewrite <- asr in ainl. ainral.
-      + ainrbl. ainrbl. assumption.
-    - ainrbl. assumption.
+      + ainrbl. assumption.
+    - assumption.
 Qed.
 
 Lemma divisors_nsr_is_set :
   forall n (nnz : n <> 0),
-    is_set eq_nat_dec (divisors_nsr nnz) = true.
+    NoDup (divisors_nsr nnz).
 Proof.
   intros.
   destruct (divisorspf nnz) as [ lzset _ ].
-  unfold divisors_nsr. unfold divisors_nz.
+  unfold divisors_nsr.
   destruct eq_nat_dec; repeat apply setrm; assumption.
 Qed.
 
@@ -572,7 +560,7 @@ Proof.
   intros n nnz0 l leq.
   destruct (divisorspf nnz0) as [ lzset indiv ].
 
-  assert (inpirr := UIP_inp _ eq_nat_dec _ (divisors_nsr_is_set _ nnz0)).
+  assert (inpirr := NoDup_In_proof_irrelevant2 eq_nat_dec (divisors_nsr_is_set _ nnz0)).
   rewrite <- leq in inpirr.
 
   assert (forall a, In a l -> a <> 0) as innz.
@@ -595,9 +583,10 @@ Proof.
     unfold pair. simpl. apply ainndain.
     assumption.
 
-  unfold divisors_nsr in leq. unfold divisors_nz in leq.
+  unfold divisors_nsr in leq.
   assert ({f : {x | In x l} -> {x | In x l} | forall a, a <> f a /\ a = f (f a) /\ (In a x -> In (f a) x)}) as pairsig.
-  unshelve refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _); [ auto | ]. intro. split; [ | split ].
+  refine (exist _ (fun x => exist _ (pair x) (*pairin*)_) _). intro. split; [ | split ].
+  Unshelve.
   - unfold pair. destruct a. unfold proj1_sig in *.
     assert (anz := innz _ i). assert (ndanz := inndnz _ i). assert (adiv := inldiv _ i). assert (ndadiv := divisorpair _ _ adiv).
     destruct (eq_nat_dec x0 (n / x0)) as [ x0eqndx0 | x0nendx0 ].
@@ -631,29 +620,32 @@ Proof.
     assert (forall a, In a x -> In (pair' a) x) as ainpain. intro. destruct (pairpairs a) as [ _ [ _ inin ] ]. assumption.
     assert (pinv' := if_involutive _ _ pinv).
     assert (iftheneven := paired_even' ({x|In x l}) eq_signat_dec pair' pnid pinv' x).
-    rewrite <- e at 1. rewrite map_length.
+    rewrite <- e at 1. rewrite length_map.
     apply iftheneven. split.
 
-    + assert (is_set eq_nat_dec l = true) as lset. rewrite leq. destruct (eq_nat_dec n (sqrt n * sqrt n)); repeat apply setrm; assumption.
+    + assert (NoDup l) as lset. rewrite leq. destruct (eq_nat_dec n (sqrt n * sqrt n)); repeat apply setrm; assumption.
       rewrite <- e in lset. revert lset inpirr. clear. intros lset inpirr. remember (proj1_sig (P:=fun x : nat => In x l)) as y.
-      induction x. simpl. reflexivity.
+      induction x. simpl. constructor.
       simpl in *.
-      destruct (inb _ _ (map y x)) eqn:x0inl. discriminate.
-      rewrite (IHx lset). clear lset IHx.
-      destruct (inb _ _ x) eqn:x0inx; auto.
-      rewrite <- x0inl. rewrite <- x0inx.
-      revert Heqy inpirr. clear. intros. induction x. simpl. reflexivity.
-      simpl. rewrite IHx. clear IHx.
-      destruct a, a0. rewrite Heqy. simpl.
-      destruct (eq_nat_dec x0 x1).
-        subst. assert (Hx := inbeqIn _ eq_nat_dec x1 l). rewrite (inpirr x1 i0 i). destruct (eq_signat_dec _ _); [ reflexivity | ].
-        elim n. reflexivity.
-      destruct (eq_signat_dec _ _); [ | reflexivity ].
-      assert (x0inx := nesigne _ _ (exist (fun x : nat => In x l) x0 i) (exist _ x1 i0) n).
-      simpl in x0inx. elim x0inx. assumption.
+      assert (NoDup x) as xset.
+      { apply IHx. inversion lset. assumption. }
+      assert (~In (y a) (map y x)) as aninx'.
+      { inversion lset. assumption. }
+      assert (~In a x) as aninx.
+      { revert Heqy aninx'. clear. intros; subst.
+        destruct a. simpl in *.
+        intro inx. elim aninx'. clear aninx'.
+        induction x.
+        - simpl in *. assumption.
+        - simpl in *. destruct inx.
+          + subst. simpl. left. reflexivity.
+          + right. apply IHx. assumption.
+      }
+      constructor; assumption.
 
     + unfold paired_list. intros a ainx.
       apply ainpain. assumption.
+  - solve [ apply pairin ].
 Qed.
 
 Definition issq n := exists k, n = k * k.
@@ -670,7 +662,7 @@ Lemma nlesqn :
   forall n, n <= n * n.
 Proof.
   induction n. simpl. constructor.
-  simpl. rewrite Nat.mul_comm. simpl. remember (n*n). clear Heqn0. lia.
+  simpl. rewrite mul_comm. simpl. remember (n*n). clear Heqn0. lia.
 Qed.
 
 Lemma nltsqn :
@@ -681,16 +673,16 @@ Proof.
   - subst. simpl. lia.
   - assert (1 < n). lia.
     assert (Hx := IHn H0).
-    simpl. rewrite Nat.mul_comm. simpl. lia.
+    simpl. rewrite mul_comm. simpl. lia.
 Qed.
 
 Lemma sqmon_left :
   forall n m, n < m -> n * n < m * m.
 Proof.
   induction n. simpl. intros. destruct m. lia. simpl. remember (m * _). lia.
-  intros. simpl. rewrite Nat.mul_comm. simpl. destruct m. exfalso. lia.
+  intros. simpl. rewrite mul_comm. simpl. destruct m. exfalso. lia.
   assert (n < m). lia.
-  assert (Hx := IHn _ H0). simpl. rewrite (Nat.mul_comm m _). simpl. remember (n*n). remember (m*m).
+  assert (Hx := IHn _ H0). simpl. rewrite (mul_comm m _). simpl. remember (n*n). remember (m*m).
   lia.
 Qed.
 
@@ -709,11 +701,7 @@ Lemma apbsq :
   forall a b, (a + b) * (a + b) = a*a + 2*a*b + b*b.
 Proof.
   induction a. simpl. reflexivity.
-  intros. simpl. apply f_equal. repeat rewrite <- Nat.add_assoc. apply f_equal2. reflexivity.
-  rewrite (Nat.add_comm _ 0). simpl. rewrite Nat.mul_comm. simpl. rewrite IHa. clear IHa.
-  repeat rewrite (Nat.mul_comm _ (S _)). simpl.
-  repeat rewrite (Nat.add_comm _ (S a)). simpl.
-  rewrite (Nat.add_comm _ 0). simpl. lia.
+  intros. lia.
 Qed.
 
 Lemma sqdiff :
@@ -751,13 +739,13 @@ Proof.
   assert (sqn <> 0) as sqnnz. intro sqnz. rewrite sqnz in nsq. simpl in nsq. elim nnz. assumption.
   assert (S (sqn * sqn) = sqn * sqn + 1) as Ssqnsq. lia.
   rewrite Ssqnsq in Snnsq. revert Snnsq sqnnz. clear. intros.
-  rewrite <- Nat.add_assoc in Snnsq.
+  rewrite <- add_assoc in Snnsq.
   rewrite Nat.add_cancel_l in Snnsq.
-  destruct sqSn'. rewrite Nat.mul_comm in Snnsq. simpl in Snnsq. discriminate.
-  rewrite Nat.add_comm in Snnsq.
+  destruct sqSn'. rewrite mul_comm in Snnsq. simpl in Snnsq. discriminate.
+  rewrite add_comm in Snnsq.
   destruct sqn. elim sqnnz. reflexivity.
   clear sqnnz.
-  simpl in Snnsq. rewrite Nat.add_comm in Snnsq. simpl in Snnsq. discriminate.
+  simpl in Snnsq. rewrite add_comm in Snnsq. simpl in Snnsq. discriminate.
 Qed.
 
 Lemma nextsq :
@@ -772,8 +760,8 @@ Proof.
   assert (Hx := Nat.sqrt_square srn). rewrite nsq in *. rewrite Hx in *. clear Hx nsq.
   assert (Hx := sqrtmid (srn * srn + k) srn).
   assert (srn * srn < srn * srn + k < S srn * S srn).
-    simpl. rewrite (Nat.mul_comm _ (S _)). simpl.
-    simpl in klims. rewrite (Nat.add_comm _ 0) in klims. simpl in klims.
+    simpl. rewrite (mul_comm _ (S _)). simpl.
+    simpl in klims. rewrite (add_comm _ 0) in klims. simpl in klims.
     remember (srn * srn). revert klims. clear. intros. lia.
   assert (Hy := Hx H). clear Hx H. elim Hy. exists sr'. assumption.
 Qed.
@@ -781,7 +769,7 @@ Qed.
 Lemma divisorparity_nsq :
   forall n (nnz : n <> 0),
     ~issq n ->
-    Even (length (divisors_nz nnz)).
+    Even (length (divisors_raw nnz)).
 Proof.
   intros n nnz nnsq.
   assert (evenall := divisorcount _ nnz (divisors_nsr nnz)).
@@ -794,26 +782,30 @@ Qed.
 Lemma divisorparity_sq :
   forall n (nnz : n <> 0),
     issq n ->
-    ~Even (length (divisors_nz nnz)).
+    ~Even (length (divisors_raw nnz)).
 Proof.
-  intros n nnz nnsq. intro nzev.
-  assert (evenall := divisorcount _ nnz (divisors_nsr nnz)).
+  intros n nnz nnsq. intro rawev.
+  assert (evenall := divisorcount _ nnz (divisors_nsr nnz) ltac:(reflexivity)).
   unfold divisors_nsr in evenall.
-  destruct (eq_nat_dec _ _).
+  destruct (eq_nat_dec n _).
   - destruct (divisorspf nnz) as [ lzset indiv ].
-    assert (In (sqrt n) (divisors_nz nnz)).
-      unfold divisors_nz in *.
+    assert (In (sqrt n) (divisors_raw nnz)) as sqd.
+    {
+      unfold divisors_raw in *.
       assert (srdiv := fsqd _ _ e).
       assert (srin := fsqd _ _ e). rewrite indiv in srin.
       assert (sqrt n <> 0) as srnz. rewrite sqz. assumption.
-      rewrite <- remove_corr_neq. assumption. neqneq.
-    assert (lset := setrm _ _ _ lzset 0).
-    assert (Hx := lrm _ eq_nat_dec _ lset (sqrt n) H).
-    unfold divisors_nz in *.
-    rewrite Hx in nzev. clear Hx.
-    remember (length (remove _ _ _)). revert nzev evenall. clear. intros.
-    induction n0; firstorder; lia.
-    
+      assumption.
+    }
+    remember (divisors_raw nnz).
+    remember (sqrt n).
+    assert (Hx := lrm _ eq_nat_dec l lzset _ sqd).
+    remember (length l).
+    remember (length (remove eq_dec n0 l)).
+    revert rawev evenall Hx.
+    clear. intros. subst.
+    rewrite Even_succ in rawev.
+    apply Even_Odd_False with n2; assumption.
   - elim n0. unfold issq in nnsq. destruct nnsq.
     assert (Hx := sqrt_corr _ _ H).
     rewrite Hx in H. assumption.
@@ -821,17 +813,17 @@ Qed.
 
 Lemma sqne :
   forall n (nnz : n <> 0),
-    issq n <-> ~Even (length (divisors_nz nnz)).
+    issq n <-> ~Even (length (divisors_raw nnz)).
 Proof.
   intros.
-  assert (Hx := iffif {x | x <> 0} (fun nnz => issq (proj1_sig nnz)) (fun nnz => Even (length (divisors_nz (proj2_sig nnz))))). simpl in *.
+  assert (Hx := iffif {x | x <> 0} (fun nnz => issq (proj1_sig nnz)) (fun nnz => Even (length (divisors_raw (proj2_sig nnz))))). simpl in *.
 
   set (x := exist (fun x => x <> 0) n nnz).
   assert ((forall a : {x | x <> 0}, {issq (proj1_sig a)} + {~ issq (proj1_sig a)})) as issq_dec_sig.
     clear Hx. intros. destruct a. simpl. apply issq_dec.
   assert (Hy := Hx issq_dec_sig). clear Hx issq_dec_sig.
 
-  assert (forall a : {x | x <> 0}, {Even (length (divisors_nz (proj2_sig a)))} + {~ Even (length (divisors_nz (proj2_sig a)))}) as evendec.
+  assert (forall a : {x | x <> 0}, {Even (length (divisors_raw (proj2_sig a)))} + {~ Even (length (divisors_raw (proj2_sig a)))}) as evendec.
     clear.
     intros. destruct a. simpl.
     remember (length _). clear.
@@ -841,11 +833,11 @@ Proof.
       right. intro. rewrite <- Hx in H. rewrite H in n0ev. discriminate n0ev.
   assert (Hx := Hy evendec). clear Hy evendec.
 
-  assert (forall a : {x | x <> 0}, issq (proj1_sig a) -> ~ Even (length (divisors_nz (proj2_sig a)))) as divisorparity_sq'.
+  assert (forall a : {x | x <> 0}, issq (proj1_sig a) -> ~ Even (length (divisors_raw (proj2_sig a)))) as divisorparity_sq'.
     intros. destruct a. simpl in *. apply divisorparity_sq; assumption.
   assert (Hy := Hx divisorparity_sq'). clear Hx divisorparity_sq'.
 
-  assert (forall a : {x | x <> 0}, ~ issq (proj1_sig a) -> Even (length (divisors_nz (proj2_sig a)))) as divisorparity_nsq'.
+  assert (forall a : {x | x <> 0}, ~ issq (proj1_sig a) -> Even (length (divisors_raw (proj2_sig a)))) as divisorparity_nsq'.
     intros. apply divisorparity_nsq; assumption.
   assert (Hx := Hy divisorparity_nsq' x). clear Hy divisorparity_nsq'.
   
@@ -871,28 +863,28 @@ Lemma minsqdiff :
     issq b ->
     a < b ->
     a <> 0 ->
-   2 * NPeano.Nat.sqrt b < S (S (b - a)).
+   2 * Nat.sqrt b < S (S (b - a)).
 Proof.
   intros.
   destruct H, H0.
   rewrite H, H0 in *.
   assert (Hx := sqdiff _ _ H1).
-  rewrite NPeano.Nat.sqrt_square.
+  rewrite Nat.sqrt_square.
   rewrite Hx.
-  assert (x * x + 2 * x * (x0 - x) + (x0 - x) * (x0 - x) - x * x = 2 * x * (x0 - x) + (x0 - x) * (x0 - x)). clear. simpl. repeat rewrite (Nat.add_comm _ 0). simpl. rewrite <- Nat.add_assoc. rewrite Nat.add_comm.
-  rewrite NPeano.Nat.add_sub. reflexivity.
+  assert (x * x + 2 * x * (x0 - x) + (x0 - x) * (x0 - x) - x * x = 2 * x * (x0 - x) + (x0 - x) * (x0 - x)). clear. simpl. repeat rewrite (add_comm _ 0). simpl. rewrite <- add_assoc. rewrite add_comm.
+  rewrite Nat.add_sub. reflexivity.
   rewrite H3.
   assert (Hy := sqmon_right _ _ H1).
   assert (x0 = x + (x0 - x)). revert Hy. clear. intro. lia.
   rewrite H4 in *. remember (x0 - x). clear H4 x0 Heqn.
-  assert (x + n - x = n). rewrite Nat.add_comm. rewrite (NPeano.Nat.add_sub n x). reflexivity.
+  assert (x + n - x = n). rewrite add_comm. rewrite (Nat.add_sub n x). reflexivity.
   rewrite H4.
-  clear Hx H H0 H1 H3 H4 a b. destruct n. rewrite Nat.add_comm in Hy. simpl in Hy. lia.
-  rewrite Nat.add_comm. unfold plus at 1. fold plus. clear Hy.
-  simpl. repeat rewrite (Nat.add_comm _ 0). simpl. repeat rewrite (Nat.mul_comm _ (S _)). simpl.
-  rewrite Nat.add_comm. simpl. rewrite (Nat.add_comm _ (S (n + _))). simpl.
+  clear Hx H H0 H1 H3 H4 a b. destruct n. rewrite add_comm in Hy. simpl in Hy. lia.
+  rewrite add_comm. unfold plus at 1. fold plus. clear Hy.
+  simpl. repeat rewrite (add_comm _ 0). simpl. repeat rewrite (mul_comm _ (S _)). simpl.
+  rewrite add_comm. simpl. rewrite (add_comm _ (S (n + _))). simpl.
   assert (n + x + (n + x) < S (n + (n + n * n) + (x + x + n * (x + x)))).
-  rewrite Nat.mul_add_distr_l. remember (n * n). remember (n * x). lia.
+  rewrite mul_add_distr_l. remember (n * n). remember (n * x). lia.
   lia.
 Defined.
 
@@ -902,12 +894,15 @@ Lemma xmodmeqk_Sxmodmeq0 :
     (S x) mod m = 0.
 Proof.
   intros. destruct m; [ discriminate | ].
-  assert (S m <> 0) as mnz. intro. discriminate.
-  assert (x mod (S m) = m). simpl in *. injection H. intro. assumption.
-  rewrite H0 in *.
-  assert (Hx := Div0.add_mod_idemp_l x 1).
-  rewrite (Nat.add_comm _ 1) in Hx. simpl in Hx. rewrite <- Hx.
-  rewrite H0. rewrite Nat.add_comm. unfold plus. apply Div0.mod_same.
+  assert (S m <> 0) as mnz; [ intro; discriminate | ].
+  assert (Hx := Div0.add_mod_idemp_l x 1 (S m)).
+  repeat rewrite (add_comm _ 1) in Hx. unfold plus in Hx.
+  assert (x mod (S m) = m).
+  - simpl in *. injection H. intro. assumption.
+  - rewrite H0 in *.
+    rewrite <- Hx.
+    rewrite Div0.mod_same.
+    reflexivity.
 Qed.
 
 Lemma xmodmnem_SxmodmeqSxmodm :
@@ -917,24 +912,26 @@ Lemma xmodmnem_SxmodmeqSxmodm :
     (S x) mod m = S (x mod m).
 Proof.
   intros.
-  assert (Hx := Div0.add_mod_idemp_l x 1).
-  repeat rewrite (Nat.add_comm _ 1) in Hx. unfold plus in Hx at 2.
+  assert (Hx := Div0.add_mod_idemp_l x 1 m).
+  repeat rewrite (add_comm _ 1) in Hx. unfold plus in Hx.
   rewrite <- Hx.
   remember (x mod m).
   assert (n < m).
+  {
     assert (0 <= x). lia.
     assert (0 < m). lia.
     destruct (mod_bound_pos _ _ H1 H2). rewrite Heqn. assumption.
+  }
   assert (S n < m). lia.
-  assert (Hz := Nat.mod_small _ _ H2). rewrite Nat.add_comm. auto.
+  assert (Hz := Nat.mod_small _ _ H2). assumption.
 Qed.
 
 Lemma apbmodmeqb_amodmz :
-  forall a b m, (a + b) mod m = b mod m -> a mod m = 0.
+  forall a b m, m <> 0 -> (a + b) mod m = b mod m -> a mod m = 0.
 Proof.
-  intros. destruct m; [ solve [ simpl in *; lia ] | ].
-  destruct m. simpl. reflexivity.
-  assert (1 < S (S m)). lia. remember (S (S m)) as m'. clear m Heqm'. rename m' into m.
+  intros a b m mnz H. destruct m; [ contradiction | clear mnz ].
+  destruct m; [ solve [ apply mod_1_r ] | ].
+  assert (1 < S (S m)) as H0; [ lia | ]. remember (S (S m)) as m'. clear m Heqm'. rename m' into m.
   rewrite Div0.add_mod in H.
   assert (m <> 0); [ lia | ].
   assert (Hx := Nat.mod_upper_bound a _ H1).
@@ -945,11 +942,13 @@ Proof.
   assert (Ha := div_mod a _ H1).
   assert (Hb := div_mod b _ H1).
   assert (Hxx := div_mod (a + b) _ H1). rewrite H in Hxx.
-  repeat rewrite (Nat.add_comm _ b) in Hxx.
-  rewrite Nat.add_cancel_l in Hxx. rename Hxx into Hyy. rewrite Nat.add_comm in Hyy.
-  destruct (eq_nat_dec ((a + b) / m) 0). rewrite e in Hyy. rewrite Nat.mul_comm in Hyy. simpl in Hyy. assumption.
-  destruct (eq_nat_dec ((a + b) / m) 1). rewrite e in Hyy. rewrite Nat.mul_comm in Hyy. simpl in Hyy. rewrite Nat.add_comm in Hyy. simpl in Hyy. rewrite Hyy in Hx. revert Hx. clear. intro. lia.
-  assert ((a + b) < 2 * m). lia.
-  rewrite Nat.mul_comm in H2.
-  assert (Hxz := Div0.div_lt_upper_bound _ _ _ H2). lia.
+  repeat rewrite (add_comm _ b) in Hxx.
+  rewrite add_cancel_l in Hxx. rewrite add_comm in Hxx.
+  destruct (eq_nat_dec ((a + b) / m) 0).
+  - rewrite e in Hxx. rewrite mul_comm in Hxx. simpl in Hx. assumption.
+  - destruct (eq_nat_dec ((a + b) / m) 1).
+    + rewrite e in Hxx. rewrite mul_comm in Hxx. simpl in Hxx. rewrite add_comm in Hxx. simpl in Hxx. rewrite Hxx in Hx. revert Hx. clear. intro. lia.
+    + assert ((a + b) < 2 * m); [ lia | ].
+      rewrite mul_comm in H2.
+      assert (Hxz := Div0.div_lt_upper_bound _ _ _ H2). lia.
 Qed.

@@ -1,7 +1,7 @@
 http://rosettacode.org/wiki/100_doors
 
-Software: http://coq.inria.fr/
-Version: 8.17.0
+Software: https://rocq-prover.org/
+Version: 8.20
 
 The Two Implementations
 - base: prison.v/prison

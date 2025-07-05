@@ -24,3 +24,7 @@ Fixpoint flipwhile l n :=
   end.
 
 Definition prison cells := flipwhile (rep false cells) cells.
+
+Goal prison 10 = true::false::false::true::false::false::false::false::true::false::nil.
+  compute. reflexivity.
+Qed.

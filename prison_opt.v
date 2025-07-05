@@ -11,3 +11,7 @@ Fixpoint prisoo' nd n k accu :=
   end.
 
 Definition prisoo n := prisoo' n 1 0 nil.
+
+Goal prisoo 10 = true::false::false::true::false::false::false::false::true::false::nil.
+  compute. reflexivity.
+Qed.

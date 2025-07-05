@@ -71,8 +71,8 @@ Proof.
     assert (S ps_idx0 < ps_n0 * ps_n0).
       rewrite ps_idxksq'. revert knz. clear. intro. lia.
     assert (S ps_idx0 <> 0). intro. discriminate H2.
-    assert (Hx := minsqdiff _ _ H H0 H1 H2). rewrite NPeano.Nat.sqrt_square in Hx.
-    rewrite ps_idxksq' in Hx. rewrite Nat.add_comm in Hx. rewrite NPeano.Nat.add_sub in Hx.
+    assert (Hx := minsqdiff _ _ H H0 H1 H2). rewrite Nat.sqrt_square in Hx.
+    rewrite ps_idxksq' in Hx. rewrite Nat.add_comm in Hx. rewrite Nat.add_sub in Hx.
     simpl in Hx. lia.
 
   exists (res ps_kle' ps_idxksq' ps_idxsqkz'); auto.
@@ -116,8 +116,9 @@ Lemma prisoo'''eq :
   forall nd n k accu idx kle sq iff,
     map s2b (prisoo'' nd (Build_prisoostack idx n k kle sq iff) accu) = prisoo' nd n k (map s2b accu).
 Proof.
-  induction nd. simpl. intros. rewrite <- map_rev. reflexivity.
-  intros. simpl. destruct k; simpl; rewrite IHnd; simpl; unfold s2b; simpl; reflexivity.
+  induction nd.
+  - simpl. intros. rewrite <- map_rev. reflexivity.
+  - intros. simpl. destruct k; simpl; rewrite IHnd; simpl; unfold s2b; simpl; reflexivity.
 Qed.
 
 Lemma prisooeq :

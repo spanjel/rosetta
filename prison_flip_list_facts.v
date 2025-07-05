@@ -2,7 +2,6 @@ Require Export prison_flip_list.
 Require Import prison.
 
 Require Import Arith.
-Require Import NPeano.
 Require Import List.
 Require Import Nat.
 Require Import Lia.
@@ -72,8 +71,7 @@ Proof.
   intros. unfold flipleach. rewrite <- flipeqflipl with (l' := l'); [ | assumption ].
   rewrite H in *. clear H l'.
   unfold flipeach. destruct l. simpl. reflexivity.
-  rewrite H0. unfold plus. rewrite Nat.Div0.mod_same.
-  assert (Hx := Nat.sub_0_r lim). rewrite Hx.
+  rewrite H0. unfold plus. rewrite Nat.Div0.mod_same. rewrite Nat.sub_0_r.
   reflexivity.
 Qed.
 
@@ -107,17 +105,19 @@ Lemma divseq :
     length (fe_divs _ a) = length (fe_divs _ b).
 Proof.
 
-  intros. subst. destruct a, b. simpl in *.
-  subst. revert fe_idx0 fe_divs0 fe_invariant0 fe_invariant. intros.
-  destruct fe_invariant0 as [ idnz [ dset [ dle iniff ] ] ].
-  destruct fe_invariant as [ _ [ dset' [ dle' iniff' ] ] ].
-  rewrite Forall_forall in dle, dle'.
-  assert (forall A B C D : Prop, (A -> B) -> (C -> B) -> (B -> (D <-> A)) -> (B -> (D <-> C)) -> (A <-> C)).
-  { clear. intros. firstorder. }
-  assert (forall x, In x fe_divs <-> In x fe_divs0).
-  { intros. rewrite (H _ _ _ _  (dle x) (dle' x) (iniff x) (iniff' x)). firstorder. }
-  revert H0 dset dset'; clear; intros.
-  assert (Hx := setleneq _ eq_nat_dec). apply Hx; auto.
+  intros. subst. destruct a, b; simpl in *.
+  rename fe_idx into fe_idx_a; rename fe_idx0 into fe_idx_b.
+  rename fe_divs into fe_divs_a; rename fe_divs0 into fe_divs_b.
+  rename fe_invariant into fe_invariant_a; rename fe_invariant0 into fe_invariant_b.
+  destruct fe_invariant_a as [ fe_idx_a_nz [ fe_divs_a_nd [ fe_divs_a_compl fe_divs_a_corr ] ] ].
+  destruct fe_invariant_b as [ fe_idx_b_nz [ fe_divs_b_nd [ fe_divs_b_compl fe_divs_b_corr ] ] ].
+  destruct fe_idx_b; [ elim fe_idx_b_nz; reflexivity | ].
+  destruct fe_idx_a; [ elim fe_idx_a_nz; reflexivity | ].
+  injection H0; intro; subst; clear H0; rename fe_idx_b into fe_idx.
+  clear fe_idx_a_nz fe_idx_b_nz.
+  rewrite Forall_forall in fe_divs_a_compl, fe_divs_b_compl.
+  rename lim' into lim.
+  apply setleneq; firstorder.
 Qed.
 
 Lemma oddmapfliplelem :
@@ -181,15 +181,22 @@ Qed.
 Lemma fliplem0divs :
   forall x : fliplelem 0, fe_divs _ x = nil.
 Proof.
-  intros. destruct x. simpl. destruct fe_invariant as [ xx [ yy [ dle xin ] ] ].
-  rewrite Forall_forall in dle. destruct fe_divs; [ reflexivity | ].
-  assert (n=0).
-  {
-    destruct n; [ reflexivity | ].
-    assert (Hx := dle (S n)). simpl in Hx. assert (Hy := Hx (or_introl eq_refl)). lia.
-  }
-  subst.
-  assert (Hx := xin 0). destruct (Hx (le_n 0)). simpl in H0. elim xx. apply H0. auto.
+  intros. destruct x. simpl. destruct fe_invariant as [ idxnz [ nodupp [ dle xin ] ] ].
+  rewrite Forall_forall in dle.
+  revert fe_idx idxnz nodupp dle xin.
+  induction fe_divs; [ intros; reflexivity | ].
+  intros. assert (dle := dle a ltac:(simpl; auto)).
+  exfalso.
+  destruct dle as [ [ az | adiv ] alez ].
+  - subst. destruct (xin 0 ltac:(constructor)).
+    assert (H0 := H0 ltac:(simpl; auto)).
+    destruct fe_idx; [ elim idxnz; reflexivity | ].
+    rewrite Nat.mod_0_r in H0.
+    discriminate H0.
+  - destruct a; [ | lia ].
+    destruct fe_idx; [ elim idxnz; reflexivity | ].
+    rewrite Nat.mod_0_r in adiv.
+    discriminate adiv.
 Qed.
 
 Lemma oddmapeq :
@@ -201,7 +208,8 @@ Proof.
   unfold oddmap. revert x0 lxeqlx0. induction x; intros.
   + simpl. destruct x0. simpl. reflexivity.
     simpl in lxeqlx0. discriminate.
-  + simpl. destruct x0.  simpl in lxeqlx0. discriminate. rewrite (IHx x0).
+  + simpl. destruct x0; [ simpl in lxeqlx0; discriminate | ].
+    rewrite (IHx x0).
     * simpl. repeat rewrite fliplem0divs. simpl. reflexivity.
     * simpl in lxeqlx0. inversion lxeqlx0. reflexivity.
 Qed.
@@ -211,26 +219,29 @@ Lemma prisoneq :
     prison cells = oddmap _ (proj1_sig (prisonl cells)).
 Proof.
 
-  intros. unfold prison. unfold prisonl.
+  intros. unfold prison.
+  unfold prisonl.
   rewrite <- flipwhileeqfliplwhile with (l' := oddmap _ (proj1_sig (prisonlbase cells))).
 
   - apply f_equal2; auto.
-    induction cells. simpl. reflexivity.
-    unfold rep in *. fold @rep in *. rewrite IHcells. clear.
+    induction cells; [ simpl; reflexivity | ].
+    unfold rep in *. fold @rep in *. rewrite IHcells.
+    clear.
     destruct (prisonlbase cells). unfold proj1_sig.
     destruct (prisonlbase (S cells)).
     assert (S (length x) = length x0).
-      destruct a as [ xlen _ ]. destruct a0 as [ x0len _ ]. rewrite xlen, x0len. reflexivity.
+    { destruct a as [ xlen _ ]. destruct a0 as [ x0len _ ]. rewrite xlen, x0len. reflexivity. }
     clear a a0.
-    destruct x0. simpl in *. discriminate.
-    simpl. rewrite fliplem0divs. simpl. apply f_equal2; auto.
-    simpl in *. inversion H. rename H1 into lxeqlx0. clear H f.
-    apply oddmapeq. assumption.
+    destruct x0.
+    + simpl in *. discriminate.
+    + simpl. rewrite fliplem0divs. simpl. apply f_equal2; auto.
+      simpl in *. inversion H. rename H1 into lxeqlx0. clear H f.
+      apply oddmapeq. assumption.
 
   - destruct cells. simpl. reflexivity.
     destruct (prisonlbase cells).
     destruct (prisonlbase (S cells)). unfold proj1_sig in *.
-    apply oddmapeq. rewrite rev_length. reflexivity.
+    apply oddmapeq. rewrite length_rev. reflexivity.
 
   - destruct (prisonlbase cells). unfold proj1_sig.
     destruct x. simpl. constructor.
@@ -302,7 +313,7 @@ Proof.
   simpl in fidlenfleqSe.
   inversion fidlenfleqSe as [ lenfeqe ]. clear fidlenfleqSe. clear eeq.
   rewrite Forall_forall.
-  revert dependent f. revert e.
+  generalize dependent f. revert e.
   induction l. simpl. intros. destruct H; subst; [ constructor | elim H ].
   intros e f idxc alfe x xin.
   assert (alcont := idxcontt _ _ _ _ idxc eq_refl).
@@ -361,7 +372,7 @@ Proof.
   assert (Hz := Hy lastidreseqbase). clear Hy lastidreseqbase.
   rewrite Forall_forall in Hz.
   assert (Hx := Hz _ xin). clear Hz.
-  rewrite Hx. simpl in *. rewrite <- rev_length in baselen. destruct (rev base). simpl in *. rewrite beg1. rewrite <- baselen. constructor. constructor. reflexivity.
+  rewrite Hx. simpl in *. rewrite <- length_rev in baselen. destruct (rev base). simpl in *. rewrite beg1. rewrite <- baselen. constructor. constructor. reflexivity.
   simpl in *. destruct basecont as [ _ basecont ].
   assert (Hy := idxcont_idx _ _ _ _ basecont). rewrite (beg1 f0) in Hy; [ | reflexivity ].
   rewrite Hy. rewrite <- baselen. simpl. constructor. constructor.

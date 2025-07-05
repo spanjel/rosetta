@@ -1,4 +1,3 @@
-Require Import NPeano.
 Require Import List.
 Require Export ucp.
 Require Export logic.
@@ -69,31 +68,27 @@ Qed.
 
 Lemma setrm :
   forall A dec (l : list A),
-    is_set dec l = true ->
-    (forall a, is_set dec (remove dec a l) = true).
+    NoDup l ->
+    (forall a, NoDup (remove dec a l)).
 Proof.
-  induction l as [ | h l ]. simpl. reflexivity.
-  intros set a. destruct (settail _ _ _ _ set) as [ lset hninl ]. clear set. simpl.
+  induction l as [ | h l ]. simpl. intros; assumption.
+  intros set a. destruct (NoDup_remove nil l h set) as [ lset hninl ]. clear set. simpl.
   assert (Hx := IHl lset). clear IHl. rename Hx into IHl.
   destruct (dec a h) as [ aeqh | aneh ].
   - subst. apply IHl.
-  - simpl. rewrite IHl. clear IHl.
-    destruct (inb dec h (remove _ _ _)) eqn:hinralres.
-    + elim (Inremoveidem _ dec l h a hninl).
-      rewrite inbeqIn in hinralres.
-      assumption.
-    + reflexivity.
+  - simpl. apply NoDup_cons; [ | exact (IHl a) ].
+    rewrite <- remove_corr_neq; [ exact hninl | exact aneh ].
 Qed.
 
 Lemma lrm :
   forall A dec (l : list A),
-    is_set dec l = true ->
+    NoDup l ->
     forall x, In x l ->
     length l = S (length (remove dec x l)).
 Proof.
   induction l. intros _ x innil. simpl in innil. contradiction innil.
   intros set x inal.
-  destruct (settail _ _ _ _ set) as [ tset ninl ]. clear set.
+  destruct (NoDup_remove nil l a set) as [ tset ninl ]. clear set.
   simpl in inal. destruct inal as [ aeqx | inl ].
   - rewrite aeqx in *. clear aeqx a.
     simpl.
@@ -124,7 +119,7 @@ Qed.
 
 Lemma removetwo :
   forall A eq_dec (l : list A),
-    is_set eq_dec l = true ->
+    NoDup l ->
     (forall a,
        In a l ->
        (forall b rbral,
@@ -140,18 +135,18 @@ Proof.
   intros A dec l set a ainl b rbral rbraldef.
   destruct (dec a b) as [ aeqb | aneb ].
   - subst.
-    assert (lenrbrbl := lrm _ _ _ set _ ainl).
+    assert (lenrbrbl := lrm _ dec _ set _ ainl).
     assert (bnilrbl := remove_In dec l b).
     assert (leqrbl := rmnothing _ dec _ _ bnilrbl).
     rewrite <- leqrbl.
     assumption.
   - destruct (inb dec b l) eqn:binl.
-    + assert (lenral := lrm _ _ _ set _ ainl).
+    + assert (lenral := lrm _ dec _ set _ ainl).
       assert (ralset := setrm A dec l set a).
       rewrite inbeqIn in binl.
       generalize binl; intro binral.
       rewrite (remove_corr_neq _ dec l _ _ aneb) in binral.
-      assert (lenrbral := lrm _ _ _ ralset _ binral).
+      assert (lenrbral := lrm _ dec _ ralset _ binral).
       rewrite lenrbral in lenral.
       rewrite rbraldef.
       apply lenral.
@@ -165,7 +160,7 @@ Qed.
 
 Lemma removepairs :
   forall A eq_dec (l : list A) (pair : A -> A),
-    is_set eq_dec l = true ->
+    NoDup l ->
     (forall a, In a l -> In (pair a) l) ->
     (forall a,
        In a l ->
@@ -189,11 +184,11 @@ Qed.
 
 Lemma setrmhd :
   forall A eq_dec (a : A) l,
-    is_set eq_dec (a::l) = true ->
+    NoDup (a::l) ->
     remove eq_dec a (a::l) = l.
 Proof.
-  intros.
-  destruct (settail _ _ _ _ H) as [ lset aninl ].
+  intros ? ? ? ? H.
+  destruct (NoDup_remove nil _ _ H) as [ lset aninl ].
   simpl. destruct (eq_dec a a). rewrite <- (rmnothing). reflexivity. assumption.
   elim n. reflexivity.
 Qed.
@@ -212,60 +207,6 @@ Proof.
   - intros. destruct (IHl a). split. assumption.
     apply H1; assumption.
   - destruct H2. assumption.
-Qed.
-
-Lemma setsigeq :
-  forall A eq_dec (P : {l : list A | is_set eq_dec l = true} -> Prop) lx ly,
-    lx = ly ->
-    (forall py px, P (exist _ lx px) = P (exist _ ly py)).
-Proof.
-  intros. subst. assert (px = py). apply (@Eqdep_dec.UIP_dec _ eq_bool_dec _ _).
-  rewrite H. reflexivity.
-Qed.
-
-Lemma set_ind :
-  forall A eq_dec (P : {l | is_set eq_dec l = true} -> Prop),
-    (forall nilpf, P (exist _ nil nilpf)) ->
-    (forall (a : A) lpf ralpf, P (exist _ (remove eq_dec a (proj1_sig lpf)) ralpf) -> P lpf) ->
-    forall l, P l.
-Proof.
-  intros. destruct l as [ l set ].
-  induction l. apply H.
-  assert (Hset := setrm A eq_dec (a::l) set a).
-  apply (H0 a (exist _ (a::l) set) Hset).
-  destruct (settail _ _ _ _ set) as [ lset aninl ].
-  assert (raaleql := setrmhd _ _ _ _ set).
-  rewrite (setsigeq _ _ P (remove eq_dec a (a::l)) l raaleql lset).
-  apply IHl.
-Qed.
-
-Lemma set_eo_ind :
-  forall A eq_dec (P : {l | is_set eq_dec l = true} -> Prop),
-    (forall nilpf, P (exist _ nil nilpf)) ->
-    (forall a opf, P (exist _ (a::nil) opf)) ->
-    (forall (a b : A) lpf rarblpf, P (exist _ (remove eq_dec b (remove eq_dec a (proj1_sig lpf))) rarblpf) -> P lpf) ->
-    forall l, P l.
-Proof.
-  intros. destruct l as [ l lset ].
-  destruct l. apply H.
-  rename lset into alset.
-  assert (lset := setrm A eq_dec (a::l) alset a).
-  destruct (settail A eq_dec l a alset) as [ lset' aninl ].
-  cut (P (exist _ _ lset') /\ P (exist _ _ alset)). intro. destruct H2. assumption.
-  revert a alset lset aninl lset'. induction l. intros. split; auto.
-  intros.
-  destruct (settail _ _ _ _ alset) as [ alset' a0ninal ].
-  assert (Hxxx := setrm _ _ _ lset' a).
-  destruct (settail _ _ _ _ lset').
-  destruct (IHl a lset' Hxxx H3 H2). split; auto.
-  assert (Hxxxx := H1 a0 a (exist _ _ alset)).
-  cbv beta in Hxxxx. unfold proj1_sig in Hxxxx.
-  assert (is_set eq_dec (remove eq_dec a (remove eq_dec a0 (a0 :: a :: l))) = true) as setrara0aa0l.
-    rewrite setrmhd; auto.
-  apply (Hxxxx setrara0aa0l).
-  assert (Hx := setsigeq A eq_dec P l (remove eq_dec a (remove eq_dec a0 (a0 :: a :: l)))).
-  rewrite <- Hx with (px := H2). assumption.
-  repeat rewrite setrmhd; auto.
 Qed.
 
 Definition eq_dec_t A := forall a b : A, {a=b}+{a<>b}.
@@ -298,7 +239,7 @@ Lemma redundant_list_len :
     length l = length (proj1_sig (redundant_list _ l)).
 Proof.
   intros. destruct (redundant_list A l). simpl.
-  rewrite <- e at 1. rewrite map_length. reflexivity.
+  rewrite <- e at 1. rewrite length_map. reflexivity.
 Qed.
 
 Lemma nesigne :
@@ -432,9 +373,9 @@ Require Import PeanoNat.
 Lemma paired_even :
   forall
     A
-    eq_dec
     (pair : {pair | (forall a, a <> pair a) /\ (forall a b : A, a <> b -> pair a <> b -> a <> pair b)})
-    (l_paired : {l | is_set eq_dec l = true /\ paired_list (proj1_sig pair) l}),
+    (l_paired : {l | NoDup l /\ paired_list (proj1_sig pair) l})
+    (eq_dec : forall (a b : A), {a=b}+{a<>b}),
   Nat.Even (length (proj1_sig l_paired)).
 Proof.
   intros.
@@ -456,8 +397,8 @@ Proof.
     destruct (eq_dec a (pair a)). elim (notid a). assumption.
     rewrite (setrmhd _ _ _ _ set) in Hy.
     assert (Hx := IHn (remove eq_dec (pair a) l)). clear IHn.
-    assert (lset := setrm _ _ _ set a). rewrite setrmhd in lset; [ | assumption ].
-    assert (palset := setrm _ _ _ lset (pair a)).
+    assert (lset := setrm _ eq_dec _ set a). rewrite setrmhd in lset; [ | assumption ].
+    assert (palset := setrm _ eq_dec _ lset (pair a)).
     assert (Hz := Hx palset). clear Hx.
     unfold paired_list in rarblpaired.
     assert (rblpaired := rarblpaired a). clear rarblpaired. rewrite setrmhd in rblpaired; [ | assumption ].
@@ -465,7 +406,7 @@ Proof.
     assert (painl := paired a). assert (In a (a::l)). simpl. left. reflexivity.
     assert (Hz := painl H). clear painl H.
     assert (In (pair a) l) as painl. simpl in Hz. destruct Hz. elim n0. assumption. assumption. clear Hz.
-    assert (Hz := lrm _ _ _ lset _ painl). simpl in Heqn. rewrite Hz in Heqn. injection Heqn. intro. clear Hz.
+    assert (Hz := lrm _ eq_dec _ lset _ painl). simpl in Heqn. rewrite Hz in Heqn. injection Heqn. intro. clear Hz.
     assert (Hz := Hx H). revert Hz. clear. intro neven.
     unfold Nat.Even in *. destruct neven. rewrite H.
     exists (S x). simpl. auto.
@@ -474,45 +415,29 @@ Qed.
 Lemma paired_even' :
   forall
     A
-    eq_dec
+    (eq_dec : forall a b : A, {a=b}+{a<>b})
     pair
     (pairpf1 : forall a, a <> pair a)
     (pairpf2 : forall a b : A, a <> b -> pair a <> b -> a <> pair b)
     l
-    (l_paired : is_set eq_dec l = true /\ paired_list pair l),
+    (l_paired : NoDup l /\ paired_list pair l),
   Nat.Even (length l).
 Proof.
-  intros. assert (Hx := paired_even _ _ (exist _ pair (conj pairpf1 pairpf2)) (exist _ _ l_paired)).
+  intros. assert (Hx := paired_even _ (exist _ pair (conj pairpf1 pairpf2)) (exist _ _ l_paired) eq_dec).
   simpl in Hx. assumption.
 Qed.
 
+Require Import Permutation.
 Lemma setleneq :
-  forall A dec (l ll : list A),
-    is_set dec l = true ->
-    is_set dec ll = true ->
+  forall A (l ll : list A),
+    NoDup l ->
+    NoDup ll ->
     (forall a, In a l <-> In a ll) ->
     length l = length ll.
 Proof.
-  induction l. intros. simpl. destruct ll. reflexivity. simpl in H1.
-  assert (a = a \/ In a ll). left. reflexivity.
-  rewrite <- H1 in H2. contradiction.
-  intros. simpl in *. destruct (inb dec a l) eqn:xx; [ discriminate | ].
-  assert (In a ll).
-    rewrite <- H1. left. reflexivity.
-  assert (Hx := setrm _ _ _ H0 a).
-  assert (Hy := lrm _ _ _ H0 _ H2).
-  rewrite Hy. rewrite (IHl _ H Hx). reflexivity.
-  intros. destruct (dec a a0).
-  - rewrite <- e. split; intro.
-    + rewrite inbeqInnot in xx. elim xx. assumption.
-    + exfalso. revert H3. clear. intro.
-      elim (remove_In dec ll a). assumption.
-  - rewrite <- (remove_corr_neq _ dec ll _ _ n).
-    rewrite <- H1. split; intro.
-    + right. assumption.
-    + destruct H3.
-      * elim n. assumption.
-      * assumption.
+  intros.
+  assert (Hx := NoDup_Permutation H H0 H1).
+  apply Permutation_length. assumption.
 Qed.
 
 Fixpoint zipmin {A B} (l : list A) (ll : list B) :=
@@ -534,7 +459,7 @@ Proof.
   assert (length (rev l) = 1). rewrite H. simpl. reflexivity.
   destruct l; [ discriminate H0 | ].
   destruct l; [ solve [ auto ] | ].
-  simpl in H0. rewrite <- app_assoc in H0. rewrite app_length in H0.
+  simpl in H0. rewrite <- app_assoc in H0. rewrite length_app in H0.
   simpl in H0. remember (length _). exfalso. revert H0. clear.
   intros.
   rewrite Nat.add_comm in H0. simpl in H0. discriminate H0.
